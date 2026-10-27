@@ -1,13 +1,66 @@
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabase";
 import "./App.css";
 
 const NAV_ITEMS = [
   { id: "home", label: "Home", icon: "⌂" },
+  { id: "community", label: "Potato FC", icon: "🥔" },
   { id: "games", label: "Find a game", icon: "⚽" },
   { id: "my-games", label: "My games", icon: "▣" },
   { id: "turfs", label: "Find a turf", icon: "⌖" },
   { id: "profile", label: "My profile", icon: "◉" },
+];
+
+const POTATO_NEIGHBORHOODS = [
+  "Koramangala", "HSR Layout", "BTM Layout", "JP Nagar", "Jayanagar",
+  "Banashankari", "Electronic City", "Sarjapur Road", "Kumaraswamy Layout",
+  "Nearby South Bengaluru",
+];
+
+function localDateISO(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+// Weekly templates always point to the next calendar week (Mon–Sun),
+// not to an accidental same-week occurrence when the app is opened late in the week.
+function nextWeekdayISO(offsetFromMonday) {
+  const now = new Date();
+  const daysUntilNextMonday = ((8 - now.getDay()) % 7) || 7;
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  monday.setDate(monday.getDate() + daysUntilNextMonday);
+  monday.setDate(monday.getDate() + offsetFromMonday);
+  return localDateISO(monday);
+}
+
+const WEEKLY_RUNS = [
+  {
+    id: "wed-verve-5v5", day: "Wednesday", date: nextWeekdayISO(2),
+    title: "Potato FC · Wednesday 5v5", venueName: "Verve Play",
+    format: "5-a-side", formatLabel: "5v5", maxPlayers: 10,
+    playoUrl: "https://go.playo.app/PLAYOO/G1jN7", accent: "lime",
+  },
+  {
+    id: "thu-play-matrix-9v9", day: "Thursday", date: nextWeekdayISO(3),
+    title: "Potato FC · Thursday 9v9", venueName: "Play Matrix",
+    format: "9-a-side", formatLabel: "9v9", maxPlayers: 18,
+    playoUrl: "https://go.playo.app/PLAYOO/WytL8", accent: "gold",
+  },
+  {
+    id: "fri-verve-5v5", day: "Friday", date: nextWeekdayISO(4),
+    title: "Potato FC · Friday 5v5", venueName: "Verve Play",
+    format: "5-a-side", formatLabel: "5v5", maxPlayers: 10,
+    playoUrl: "https://go.playo.app/PLAYOO/9PmLf", accent: "blue",
+  },
+  {
+    id: "sun-verve-5v5", day: "Sunday", date: nextWeekdayISO(6),
+    title: "Potato FC · Sunday 5v5", venueName: "Verve Play",
+    format: "5-a-side", formatLabel: "5v5", maxPlayers: 10,
+    playoUrl: "https://go.playo.app/PLAYOO/EJWnc", accent: "violet",
+  },
 ];
 
 export default function Dashboard({ user, onLogout }) {
@@ -22,14 +75,51 @@ export default function Dashboard({ user, onLogout }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [joiningGameId, setJoiningGameId] = useState(null);
+  const [paymentRequests, setPaymentRequests] = useState([]);
+  const [paymentGame, setPaymentGame] = useState(null);
+  const [freeJoinGame, setFreeJoinGame] = useState(null);
+  const [selectedMatchSkillLevel, setSelectedMatchSkillLevel] = useState("Beginner");
+  const [paymentSlots, setPaymentSlots] = useState(1);
+  const [upiReference, setUpiReference] = useState("");
+  const [reviewingRequestId, setReviewingRequestId] = useState(null);
+  const [cancellingGameId, setCancellingGameId] = useState(null);
+  const [clock, setClock] = useState(Date.now());
+  const [gameDraftTemplate, setGameDraftTemplate] = useState(null);
+  const [playerProfile, setPlayerProfile] = useState({
+    full_name:
+      user.user_metadata?.display_name ||
+      user.user_metadata?.full_name ||
+      user.email?.split("@")[0] ||
+      "",
+    skill_level: "",
+    primary_position: "",
+    secondary_position: "",
+    preferred_foot: "Right",
+    jersey_number: "",
+    bio: "",
+  });
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  const [profileSaved, setProfileSaved] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [gameRoster, setGameRoster] = useState({});
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
 
-  const displayName =
+  const authFallbackName =
     user.user_metadata?.display_name ||
     user.user_metadata?.full_name ||
     user.email?.split("@")[0] ||
-    "Player";
+    "";
+
+  const displayName = playerProfile.full_name?.trim() || authFallbackName || "Player";
+
+  const profileComplete = Boolean(
+    profileLoaded &&
+    profileSaved &&
+    playerProfile.full_name?.trim() &&
+    playerProfile.skill_level &&
+    playerProfile.primary_position
+  );
 
   const initials = displayName
     .split(/[\s._-]+/)
@@ -45,13 +135,14 @@ export default function Dashboard({ user, onLogout }) {
     try {
       const now = new Date().toISOString();
 
-      const [gamesResult, venuesResult, membershipsResult] =
+      const [gamesResult, venuesResult, membershipsResult, requestsResult, profileResult] =
         await Promise.all([
           supabase
             .from("games")
             .select("*")
             .eq("status", "open")
-            .gte("starts_at", now)
+            .is("cancelled_at", null)
+            .gte("ends_at", now)
             .order("starts_at", { ascending: true }),
 
           supabase
@@ -65,11 +156,53 @@ export default function Dashboard({ user, onLogout }) {
             .select("game_id, status")
             .eq("player_id", user.id)
             .eq("status", "joined"),
+
+          supabase
+            .from("game_payment_requests")
+            .select("id, game_id, player_id, amount_paise, slots_count, match_skill_level, upi_reference, status, created_at, review_note")
+            .order("created_at", { ascending: false })
+            .limit(200),
+
+          supabase
+            .from("profiles")
+            .select("id, full_name, skill_level, primary_position, secondary_position, preferred_foot, jersey_number, bio")
+            .eq("id", user.id)
+            .maybeSingle(),
         ]);
 
       if (gamesResult.error) throw gamesResult.error;
       if (venuesResult.error) throw venuesResult.error;
       if (membershipsResult.error) throw membershipsResult.error;
+      if (requestsResult.error) throw requestsResult.error;
+      if (profileResult.error) throw profileResult.error;
+
+      const loadedProfile = profileResult.data;
+
+      if (loadedProfile) {
+        setPlayerProfile({
+          full_name: loadedProfile.full_name || "",
+          skill_level: loadedProfile.skill_level || "",
+          primary_position: loadedProfile.primary_position || "",
+          secondary_position: loadedProfile.secondary_position || "",
+          preferred_foot: loadedProfile.preferred_foot || "Right",
+          jersey_number: loadedProfile.jersey_number ?? "",
+          bio: loadedProfile.bio || "",
+        });
+        setProfileSaved(true);
+      } else {
+        setPlayerProfile({
+          full_name: authFallbackName,
+          skill_level: "",
+          primary_position: "",
+          secondary_position: "",
+          preferred_foot: "Right",
+          jersey_number: "",
+          bio: "",
+        });
+        setProfileSaved(false);
+      }
+
+      setProfileLoaded(true);
 
       const loadedGames = gamesResult.data || [];
 
@@ -78,12 +211,13 @@ export default function Dashboard({ user, onLogout }) {
       setMyGameIds(
         (membershipsResult.data || []).map((item) => item.game_id)
       );
+      setPaymentRequests(requestsResult.data || []);
 
       if (loadedGames.length) {
         const { data: participants, error: participantError } =
           await supabase
             .from("game_participants")
-            .select("game_id, status")
+            .select("game_id, player_id, status, slots_count, match_skill_level, team_color")
             .in(
               "game_id",
               loadedGames.map((game) => game.id)
@@ -92,16 +226,69 @@ export default function Dashboard({ user, onLogout }) {
 
         if (participantError) throw participantError;
 
+        const participantRows = participants || [];
         const counts = {};
 
-        for (const participant of participants || []) {
+        for (const participant of participantRows) {
           counts[participant.game_id] =
-            (counts[participant.game_id] || 0) + 1;
+            (counts[participant.game_id] || 0) +
+            Number(participant.slots_count || 1);
         }
 
         setParticipantCounts(counts);
+
+        const profileIds = [
+          ...new Set(
+            participantRows.map((row) => row.player_id).filter(Boolean)
+          ),
+        ];
+
+        if (profileIds.length) {
+          const { data: profileRows, error: rosterError } = await supabase
+            .from("profiles")
+            .select("id, full_name, skill_level, primary_position, secondary_position")
+            .in("id", profileIds);
+
+          if (rosterError) throw rosterError;
+
+          const profilesById = Object.fromEntries(
+            (profileRows || []).map((profile) => [profile.id, profile])
+          );
+
+          const roster = {};
+
+          for (const participant of participantRows) {
+            const profile = profilesById[participant.player_id];
+
+            if (!roster[participant.game_id]) {
+              roster[participant.game_id] = [];
+            }
+
+            roster[participant.game_id].push({
+              id: participant.player_id,
+              full_name: profile?.full_name || "Player",
+              skill_level:
+                participant.match_skill_level ||
+                profile?.skill_level ||
+                "Profile pending",
+              match_skill_level:
+                participant.match_skill_level ||
+                profile?.skill_level ||
+                "Beginner",
+              primary_position: profile?.primary_position || "Position pending",
+              secondary_position: profile?.secondary_position || "",
+              team_color: participant.team_color || null,
+              slots_count: Number(participant.slots_count || 1),
+            });
+          }
+
+          setGameRoster(roster);
+        } else {
+          setGameRoster({});
+        }
       } else {
         setParticipantCounts({});
+        setGameRoster({});
       }
     } catch (err) {
       console.error("KICKOFF data loading error:", err);
@@ -109,14 +296,38 @@ export default function Dashboard({ user, onLogout }) {
     } finally {
       setLoading(false);
     }
-  }, [user.id]);
+  }, [user.id, authFallbackName]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
+  // Expired matches are removed from the active UI even if the tab remains open.
+  useEffect(() => {
+    const expiryTimer = window.setInterval(() => {
+      const nowMs = Date.now();
+
+      setClock(nowMs);
+
+      setGames((currentGames) =>
+        currentGames.filter((game) => {
+          if (game.cancelled_at) return false;
+
+          const endMs = new Date(game.ends_at).getTime();
+
+          return !Number.isFinite(endMs) || endMs > nowMs;
+        })
+      );
+    }, 15000);
+
+    return () => window.clearInterval(expiryTimer);
+  }, []);
+
   const venueFor = (game) =>
-    venues.find((venue) => venue.id === game.venue_id);
+    venues.find((venue) => venue.id === game.venue_id) ||
+    (game.venue_name
+      ? { name: game.venue_name, city: "", address: "" }
+      : null);
 
   const myGames = useMemo(
     () =>
@@ -181,6 +392,13 @@ export default function Dashboard({ user, onLogout }) {
   async function createGame(event) {
     event.preventDefault();
 
+    if (!profileComplete) {
+      setPage("profile");
+      setNotice("Complete your player card first, then publish your match.");
+      setError("");
+      return;
+    }
+
     setSaving(true);
     setError("");
     setNotice("");
@@ -216,22 +434,36 @@ export default function Dashboard({ user, onLogout }) {
         maxPlayers < 2 ||
         maxPlayers > 50
       ) {
-        throw new Error(
-          "Player capacity must be between 2 and 50."
-        );
+        throw new Error("Player capacity must be between 2 and 50.");
       }
 
       const title = String(form.get("title") || "").trim();
+      const venueName = String(form.get("venue_name") || "").trim();
+      const hostUpiId = String(form.get("host_upi_id") || "").trim();
 
       if (!title) {
         throw new Error("Enter a name for your game.");
+      }
+
+      if (!venueName) {
+        throw new Error("Enter the venue name.");
+      }
+
+      if (priceRupees > 0 && !hostUpiId) {
+        throw new Error("Enter the host UPI ID for a paid game.");
+      }
+
+      if (hostUpiId.length > 100) {
+        throw new Error("The host UPI ID must be 100 characters or fewer.");
       }
 
       const { data, error: createError } = await supabase
         .from("games")
         .insert({
           organiser_id: user.id,
-          venue_id: form.get("venue_id") || null,
+          venue_id: null,
+          venue_name: venueName,
+          host_upi_id: priceRupees > 0 ? hostUpiId : null,
           title,
           starts_at: start.toISOString(),
           ends_at: new Date(
@@ -253,6 +485,8 @@ export default function Dashboard({ user, onLogout }) {
           game_id: data.id,
           player_id: user.id,
           status: "joined",
+          slots_count: 1,
+          match_skill_level: playerProfile.skill_level || "Beginner",
         });
 
       if (participantError) {
@@ -265,12 +499,11 @@ export default function Dashboard({ user, onLogout }) {
           "Game created, but your organizer entry could not be saved."
         );
       } else {
-        setNotice(
-          "Your game is live. Get your squad together! ⚽"
-        );
+        setNotice("Your game is live. Get your squad together! ⚽");
       }
 
       setShowForm(false);
+      setGameDraftTemplate(null);
       setPage("games");
       setFilter("All games");
       setSearch("");
@@ -284,6 +517,106 @@ export default function Dashboard({ user, onLogout }) {
     }
   }
 
+  async function savePlayerProfile(event) {
+    event.preventDefault();
+    setProfileSaving(true);
+    setError("");
+    setNotice("");
+
+    try {
+      const form = new FormData(event.currentTarget);
+      const fullName = String(form.get("full_name") || "").trim();
+      const skillLevel = String(form.get("skill_level") || "");
+      const primaryPosition = String(form.get("primary_position") || "");
+      const secondaryPosition = String(form.get("secondary_position") || "");
+      const preferredFoot = String(form.get("preferred_foot") || "Right");
+      const jerseyRaw = String(form.get("jersey_number") || "").trim();
+      const bio = String(form.get("bio") || "").trim();
+
+      if (fullName.length < 2 || fullName.length > 60) {
+        throw new Error("Enter your name using 2–60 characters.");
+      }
+
+      if (
+        !["Beginner", "Intermediate", "Amateur", "Professional"].includes(
+          skillLevel
+        )
+      ) {
+        throw new Error("Choose your current playing level.");
+      }
+
+      if (
+        ![
+          "Goalkeeper",
+          "Defender",
+          "Midfielder",
+          "Forward",
+          "Flexible / Any",
+        ].includes(primaryPosition)
+      ) {
+        throw new Error("Choose your main playing position.");
+      }
+
+      const jerseyNumber = jerseyRaw ? Number(jerseyRaw) : null;
+
+      if (
+        jerseyNumber !== null &&
+        (!Number.isInteger(jerseyNumber) ||
+          jerseyNumber < 0 ||
+          jerseyNumber > 99)
+      ) {
+        throw new Error("Jersey number must be between 0 and 99.");
+      }
+
+      if (bio.length > 240) {
+        throw new Error("Keep your player intro under 240 characters.");
+      }
+
+      const payload = {
+        id: user.id,
+        full_name: fullName,
+        skill_level: skillLevel,
+        primary_position: primaryPosition,
+        secondary_position: secondaryPosition || null,
+        preferred_foot: preferredFoot,
+        jersey_number: jerseyNumber,
+        bio: bio || null,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { data, error: profileError } = await supabase
+        .from("profiles")
+        .upsert(payload, { onConflict: "id" })
+        .select(
+          "id, full_name, skill_level, primary_position, secondary_position, preferred_foot, jersey_number, bio"
+        )
+        .single();
+
+      if (profileError) throw profileError;
+
+      setPlayerProfile({
+        full_name: data.full_name,
+        skill_level: data.skill_level,
+        primary_position: data.primary_position,
+        secondary_position: data.secondary_position || "",
+        preferred_foot: data.preferred_foot || "Right",
+        jersey_number: data.jersey_number ?? "",
+        bio: data.bio || "",
+      });
+
+      setProfileLoaded(true);
+      setProfileSaved(true);
+      setNotice("Player card saved. You’re ready to join the squad. ⚽");
+
+      await loadData();
+    } catch (err) {
+      console.error("KICKOFF profile save error:", err);
+      setError(err.message || "Couldn't save your player card.");
+    } finally {
+      setProfileSaving(false);
+    }
+  }
+
   async function joinGame(game) {
     setNotice("");
     setError("");
@@ -294,48 +627,288 @@ export default function Dashboard({ user, onLogout }) {
     }
 
     if (myGameIds.includes(game.id)) {
-      setNotice(
-        "You're already listed as a participant in this game."
-      );
+      setNotice("You're already listed as a participant in this game.");
       return;
     }
 
-    if (
-      (participantCounts[game.id] || 0) >= game.max_players
-    ) {
+    if (!profileComplete) {
+      setPage("profile");
+      setNotice(
+        "Finish your player card — name, skill level and position are needed to join."
+      );
+      setError("");
+      return;
+    }
+
+    if ((participantCounts[game.id] || 0) >= game.max_players) {
       setError("This game is full.");
       return;
     }
 
-    setJoiningGameId(game.id);
+    if (Number(game.price_per_player_paise || 0) > 0) {
+      if (!game.host_upi_id || !game.host_upi_id.trim()) {
+        setError("The host has not added a UPI ID for this paid game yet.");
+        return;
+      }
+
+      setPaymentGame(game);
+      setPaymentSlots(1);
+      setSelectedMatchSkillLevel(playerProfile.skill_level || "Beginner");
+      setUpiReference("");
+      return;
+    }
+
+    setSelectedMatchSkillLevel(playerProfile.skill_level || "Beginner");
+    setFreeJoinGame(game);
+  }
+
+  async function confirmFreeJoin(event) {
+    event.preventDefault();
+    if (!freeJoinGame) return;
+
+    if (
+      !["Beginner", "Intermediate", "Amateur", "Professional"].includes(
+        selectedMatchSkillLevel
+      )
+    ) {
+      setError("Choose your playing level for this match.");
+      return;
+    }
+
+    setJoiningGameId(freeJoinGame.id);
+    setError("");
+    setNotice("");
 
     try {
-      const { data, error: joinError } = await supabase.rpc(
-        "join_game",
-        { p_game_id: game.id }
-      );
+      const { error: joinError } = await supabase.rpc("join_game_with_level", {
+        p_game_id: freeJoinGame.id,
+        p_skill_level: selectedMatchSkillLevel,
+      });
 
       if (joinError) throw joinError;
 
-      if (data && data.success === false) {
-        throw new Error(
-          data.message || "Unable to join this game."
-        );
-      }
-
-      setNotice("You're in! See you on the pitch. ⚽");
+      const joinedTitle = freeJoinGame.title;
+      setFreeJoinGame(null);
 
       await loadData();
+
+      setNotice(
+        `You're in for ${joinedTitle}! Potato FC will balance the Black and White teams automatically.`
+      );
     } catch (err) {
       console.error("KICKOFF join-game error:", err);
-
-      setError(
-        err.message || "Couldn't join this game. Please try again."
-      );
-
+      setError(err.message || "Couldn't join this game. Please try again.");
       await loadData();
     } finally {
       setJoiningGameId(null);
+    }
+  }
+
+  async function submitPaymentRequest(event) {
+    event.preventDefault();
+    if (!paymentGame) return;
+
+    setJoiningGameId(paymentGame.id);
+    setError("");
+    setNotice("");
+
+    try {
+      const slotCount = Number(paymentSlots);
+
+      if (!Number.isInteger(slotCount) || slotCount < 1 || slotCount > 50) {
+        throw new Error("Choose a valid number of slots (1–50).");
+      }
+
+      const reference = upiReference.trim();
+
+      if (reference.length < 4 || reference.length > 100) {
+        throw new Error("Enter the UPI transaction reference (4–100 characters).");
+      }
+
+      const remaining =
+        Number(paymentGame.max_players) -
+        (participantCounts[paymentGame.id] || 0);
+
+      if (slotCount > remaining) {
+        throw new Error(
+          `Only ${Math.max(remaining, 0)} slot(s) currently remain.`
+        );
+      }
+
+      if (
+        !["Beginner", "Intermediate", "Amateur", "Professional"].includes(
+          selectedMatchSkillLevel
+        )
+      ) {
+        throw new Error("Choose your playing level for this match.");
+      }
+
+      const { error: submitError } = await supabase.rpc(
+        "submit_game_payment",
+        {
+          p_game_id: paymentGame.id,
+          p_upi_reference: reference,
+          p_slots_count: slotCount,
+          p_skill_level: selectedMatchSkillLevel,
+        }
+      );
+
+      if (submitError) throw submitError;
+
+      setPaymentGame(null);
+      setPaymentSlots(1);
+      setUpiReference("");
+      setNotice(
+        `Payment request submitted as ${selectedMatchSkillLevel}. The host must verify the payment before approving your slots.`
+      );
+
+      await loadData();
+    } catch (err) {
+      console.error("KICKOFF payment request error:", err);
+      setError(err.message || "Couldn't submit your payment request.");
+    } finally {
+      setJoiningGameId(null);
+    }
+  }
+
+  async function reviewPaymentRequest(request, approve) {
+    setReviewingRequestId(request.id);
+    setError("");
+    setNotice("");
+
+    const resolvedStatus = approve ? "APPROVED" : "REJECTED";
+
+    try {
+      const { error: reviewError } = await supabase.rpc(
+        "review_game_payment",
+        {
+          p_request_id: request.id,
+          p_approve: approve,
+          p_note: null,
+        }
+      );
+
+      if (reviewError) throw reviewError;
+
+      setPaymentRequests((current) =>
+        current.map((item) =>
+          item.id === request.id
+            ? { ...item, status: resolvedStatus }
+            : item
+        )
+      );
+
+      await loadData();
+
+      // Retain the resolved status if the refresh briefly returns stale data.
+      setPaymentRequests((current) =>
+        current.map((item) =>
+          item.id === request.id
+            ? { ...item, status: resolvedStatus }
+            : item
+        )
+      );
+
+      setNotice(
+        approve
+          ? "Payment approved and the requested slots are now joined."
+          : "Payment request rejected."
+      );
+    } catch (err) {
+      console.error("KICKOFF payment review error:", err);
+      setError(err.message || "Couldn't review this payment request.");
+    } finally {
+      setReviewingRequestId(null);
+    }
+  }
+
+  async function cancelGame(game) {
+    if (game.organiser_id !== user.id) {
+      setError("Only the organiser can cancel this game.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Cancel "${game.title}"?\n\n` +
+      "The match will disappear from active listings and pending payment requests will be rejected. " +
+      "Any money already paid through UPI must be refunded separately."
+    );
+
+    if (!confirmed) return;
+
+    setCancellingGameId(game.id);
+    setError("");
+    setNotice("");
+
+    try {
+      const { error: cancelError } = await supabase.rpc("cancel_game", {
+        p_game_id: game.id,
+      });
+
+      if (cancelError) throw cancelError;
+
+      setGames((current) =>
+        current.filter((item) => item.id !== game.id)
+      );
+
+      setPaymentRequests((current) =>
+        current.map((request) =>
+          request.game_id === game.id &&
+          String(request.status || "").toUpperCase() === "PENDING"
+            ? { ...request, status: "REJECTED" }
+            : request
+        )
+      );
+
+      setNotice(`"${game.title}" has been cancelled successfully.`);
+
+      await loadData();
+    } catch (err) {
+      console.error("KICKOFF cancel-game error:", err);
+      setError(err.message || "Couldn't cancel this game.");
+    } finally {
+      setCancellingGameId(null);
+    }
+  }
+
+  function startFromTemplate(template) {
+    setGameDraftTemplate(template);
+    setError("");
+    setNotice("");
+    setShowForm(true);
+  }
+
+  async function shareText(textToShare) {
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: "Potato FC · KICKOFF",
+          text: textToShare,
+          url: window.location.href,
+        });
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(
+          `${textToShare}\n\nJoin Potato FC on KICKOFF: ${window.location.href}`
+        );
+        setNotice("Potato FC details copied. Share them with the squad.");
+      } else {
+        setNotice(textToShare);
+      }
+    } catch (err) {
+      if (err?.name !== "AbortError") {
+        setError(
+          "Couldn't share from this browser. Copy the details from the screen instead."
+        );
+      }
+    }
+  }
+
+  async function copyHostUpi(upiId) {
+    try {
+      await navigator.clipboard.writeText(upiId);
+      setNotice("Host UPI ID copied. Pay in your UPI app, then return here.");
+    } catch {
+      setNotice(`Copy this host UPI ID manually: ${upiId}`);
     }
   }
 
@@ -346,6 +919,19 @@ export default function Dashboard({ user, onLogout }) {
     const joined = myGameIds.includes(game.id);
     const organizer = game.organiser_id === user.id;
     const isJoining = joiningGameId === game.id;
+    const gameHasStarted = new Date(game.starts_at).getTime() <= clock;
+
+    const myLatestRequest = paymentRequests.find(
+      (request) =>
+        request.game_id === game.id && request.player_id === user.id
+    );
+
+    const paymentPending =
+      String(myLatestRequest?.status || "").toUpperCase() === "PENDING";
+
+    const roster = gameRoster[game.id] || [];
+    const blackTeam = roster.filter((player) => player.team_color === "BLACK");
+    const whiteTeam = roster.filter((player) => player.team_color === "WHITE");
 
     return (
       <article className="game-card" key={game.id}>
@@ -367,7 +953,8 @@ export default function Dashboard({ user, onLogout }) {
 
         <div className="game-details">
           <div className="game-card-kicker">
-            <span className="status-dot" /> OPEN MATCH
+            <span className="status-dot" />{" "}
+            {gameHasStarted ? "MATCH IN PROGRESS" : "OPEN MATCH"}
           </div>
 
           <h3>{game.title}</h3>
@@ -379,19 +966,13 @@ export default function Dashboard({ user, onLogout }) {
 
           <div className="game-time">
             <span>◷</span>
-            {displayTime(game.starts_at)} –{" "}
-            {displayTime(game.ends_at)}
+            {displayTime(game.starts_at)} – {displayTime(game.ends_at)}
           </div>
 
           <div className="game-meta">
+            <span>♟ {count}/{game.max_players} slots</span>
             <span>
-              ♟ {count}/{game.max_players} players
-            </span>
-
-            <span>
-              {full
-                ? "Full"
-                : `${game.max_players - count} spots left`}
+              {full ? "Full" : `${game.max_players - count} spots left`}
             </span>
           </div>
 
@@ -407,6 +988,92 @@ export default function Dashboard({ user, onLogout }) {
             />
           </div>
 
+          {roster.length > 0 && (
+            <div className="balanced-team-board">
+              <div className="balanced-team-heading">
+                <div>
+                  <div className="section-eyebrow">POTATO FC TEAM PICKER</div>
+                  <strong>Balanced teams</strong>
+                </div>
+                <span>
+                  {roster.length} player{roster.length === 1 ? "" : "s"}
+                </span>
+              </div>
+
+              <p className="balanced-team-note">
+                Teams rebalance automatically by the level each player selects
+                for this match.
+              </p>
+
+              <div className="balanced-teams">
+                {[
+                  {
+                    color: "BLACK",
+                    title: "BLACK TEAM",
+                    kit: "black",
+                    players: blackTeam,
+                  },
+                  {
+                    color: "WHITE",
+                    title: "WHITE TEAM",
+                    kit: "white",
+                    players: whiteTeam,
+                  },
+                ].map((team) => (
+                  <section
+                    className={`balanced-team balanced-team-${team.kit}`}
+                    key={team.color}
+                  >
+                    <div className="balanced-team-title">
+                      <span className={`team-kit team-kit-${team.kit}`}>
+                        ◉
+                      </span>
+                      <strong>{team.title}</strong>
+                      <small>
+                        {team.players.reduce(
+                          (sum, player) =>
+                            sum + Number(player.slots_count || 1),
+                          0
+                        )}{" "}
+                        slots
+                      </small>
+                    </div>
+
+                    {team.players.length ? (
+                      <div className="balanced-team-players">
+                        {team.players.map((player) => (
+                          <div
+                            className="balanced-team-player"
+                            key={player.id}
+                          >
+                            <span className="balanced-player-name">
+                              {player.full_name}
+                            </span>
+                            <span className="balanced-player-meta">
+                              {player.match_skill_level || player.skill_level}
+                              {" · "}
+                              {player.primary_position}
+                            </span>
+
+                            {Number(player.slots_count || 1) > 1 && (
+                              <span className="balanced-player-slots">
+                                ×{player.slots_count} slots
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="balanced-team-empty">
+                        Waiting for players
+                      </div>
+                    )}
+                  </section>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="game-footer">
             <div className="price">
               <strong>
@@ -415,8 +1082,7 @@ export default function Dashboard({ user, onLogout }) {
                   (game.price_per_player_paise || 0) / 100
                 ).toLocaleString("en-IN")}
               </strong>
-
-              <small> / player</small>
+              <small> / slot</small>
             </div>
 
             <button
@@ -424,20 +1090,62 @@ export default function Dashboard({ user, onLogout }) {
                 joined || organizer ? "game-action-muted" : ""
               }`}
               disabled={
-                isJoining || (!organizer && !joined && full)
+                organizer ||
+                isJoining ||
+                paymentPending ||
+                (!joined && (full || gameHasStarted))
               }
               onClick={() => joinGame(game)}
             >
               {isJoining
-                ? "Joining…"
+                ? "Submitting…"
                 : organizer
                 ? "Your game"
                 : joined
                 ? "✓ Joined"
+                : paymentPending
+                ? "Awaiting host approval"
+                : gameHasStarted
+                ? "Match started"
                 : full
                 ? "Game full"
+                : Number(game.price_per_player_paise || 0) > 0
+                ? String(myLatestRequest?.status || "").toUpperCase() === "REJECTED"
+                  ? "Retry payment request"
+                  : "Pay & request slots ↗"
                 : "Join game ↗"}
             </button>
+          </div>
+
+          <div className="game-card-extra-actions">
+            <button
+              type="button"
+              className="text-action"
+              onClick={() =>
+                shareText(
+                  `${game.title} · ${displayDate(game.starts_at, {
+                    weekday: "long",
+                  })} ${displayTime(game.starts_at)} · ${
+                    venue?.name || "Venue to be confirmed"
+                  } · ${game.format || "Football"}`
+                )
+              }
+            >
+              ↗ Share match
+            </button>
+
+            {organizer && page === "my-games" && (
+              <button
+                type="button"
+                className="cancel-game-button"
+                disabled={cancellingGameId === game.id}
+                onClick={() => cancelGame(game)}
+              >
+                {cancellingGameId === game.id
+                  ? "Cancelling…"
+                  : "× Cancel game"}
+              </button>
+            )}
           </div>
         </div>
       </article>
@@ -456,6 +1164,7 @@ export default function Dashboard({ user, onLogout }) {
 
   const pageTitle = {
     home: "Your pitch. Your people.",
+    community: "Potatoes, assemble.",
     games: "Find your next game.",
     "my-games": "Your football calendar.",
     turfs: "Find your next turf.",
@@ -473,7 +1182,6 @@ export default function Dashboard({ user, onLogout }) {
           <span className="brand-mark">
             K<span>•</span>
           </span>
-
           <span className="brand-word">
             KICK<span>OFF</span>
           </span>
@@ -485,20 +1193,15 @@ export default function Dashboard({ user, onLogout }) {
           {NAV_ITEMS.map((item) => (
             <button
               key={item.id}
-              className={`side-link ${
-                page === item.id ? "active" : ""
-              }`}
+              className={`side-link ${page === item.id ? "active" : ""}`}
               onClick={() => goTo(item.id)}
             >
               <span className="side-icon">{item.icon}</span>
               <span>{item.label}</span>
 
-              {item.id === "my-games" &&
-                myGames.length > 0 && (
-                  <span className="nav-count">
-                    {myGames.length}
-                  </span>
-                )}
+              {item.id === "my-games" && myGames.length > 0 && (
+                <span className="nav-count">{myGames.length}</span>
+              )}
             </button>
           ))}
         </nav>
@@ -509,7 +1212,6 @@ export default function Dashboard({ user, onLogout }) {
           <div className="promo-ball">⚽</div>
           <strong>Game on.</strong>
           <p>Good people. Great football. No excuses.</p>
-
           <button onClick={() => setShowForm(true)}>
             + Create a game
           </button>
@@ -535,14 +1237,10 @@ export default function Dashboard({ user, onLogout }) {
 
       <div className="main-shell">
         <header className="mobile-header">
-          <button
-            className="brand"
-            onClick={() => goTo("home")}
-          >
+          <button className="brand" onClick={() => goTo("home")}>
             <span className="brand-mark">
               K<span>•</span>
             </span>
-
             <span className="brand-word">
               KICK<span>OFF</span>
             </span>
@@ -567,6 +1265,21 @@ export default function Dashboard({ user, onLogout }) {
             </div>
           </div>
 
+          {profileLoaded && !profileComplete && page !== "profile" && (
+            <div className="profile-setup-banner">
+              <span className="profile-setup-banner-icon">◉</span>
+              <div>
+                <strong>Complete your player card</strong>
+                <p>
+                  Add your name, skill level and position before joining a match.
+                </p>
+              </div>
+              <button onClick={() => goTo("profile")}>
+                Set up profile ↗
+              </button>
+            </div>
+          )}
+
           {page === "home" && (
             <>
               <section className="welcome-hero">
@@ -583,9 +1296,8 @@ export default function Dashboard({ user, onLogout }) {
                   </h1>
 
                   <p>
-                    Find your squad, discover local games and get
-                    back on the pitch. Your next great match is
-                    closer than you think.
+                    Find your squad, discover local games and get back on the
+                    pitch. Your next great match is closer than you think.
                   </p>
 
                   <div className="hero-actions">
@@ -675,27 +1387,63 @@ export default function Dashboard({ user, onLogout }) {
                 </div>
               </section>
 
+              <section className="potato-home-card">
+                <div className="potato-home-copy">
+                  <span className="potato-kicker">
+                    YOUR SOUTH BENGALURU FOOTBALL CIRCLE
+                  </span>
+
+                  <h2>
+                    Meet <span>Potato FC.</span>
+                  </h2>
+
+                  <p>
+                    One community for the Potatoes from Koramangala, HSR, BTM,
+                    JP Nagar, Jayanagar, Banashankari, Electronic City, Sarjapur
+                    Road, Kumaraswamy Layout and everywhere nearby.
+                  </p>
+
+                  <div className="potato-home-actions">
+                    <button
+                      className="lime-button"
+                      onClick={() => goTo("community")}
+                    >
+                      Open community ↗
+                    </button>
+
+                    <button
+                      className="outline-button"
+                      onClick={() =>
+                        shareText(
+                          "Potato FC — South Bengaluru football community. Weekly runs: Wednesday Verve Play 5v5, Thursday Play Matrix 9v9, Friday Verve Play 5v5 and Sunday Verve Play 5v5."
+                        )
+                      }
+                    >
+                      Invite a Potato ↗
+                    </button>
+                  </div>
+                </div>
+
+                <div className="potato-home-badge">
+                  <span>🥔</span>
+                  <strong>POTATO FC</strong>
+                  <small>South Bengaluru · Est. by the squad</small>
+                </div>
+              </section>
+
               <section className="content-section">
                 <div className="section-heading">
                   <div>
-                    <div className="section-eyebrow">
-                      THE COMMUNITY
-                    </div>
-
+                    <div className="section-eyebrow">THE COMMUNITY</div>
                     <h2>
                       Games worth showing up for<span>.</span>
                     </h2>
-
                     <p>
-                      Real matches, real players. Find a spot and
-                      get involved.
+                      Real matches, real players. Find a spot and get involved.
                     </p>
                   </div>
 
-                  <button
-                    className="view-all"
-                    onClick={() => goTo("games")}
-                  >
+                  <button className="view-all" onClick={() => goTo("games")}>
                     All games ↗
                   </button>
                 </div>
@@ -706,25 +1454,18 @@ export default function Dashboard({ user, onLogout }) {
                   </div>
                 ) : (
                   <div className="games-grid">
-                    {games
-                      .slice(0, 3)
-                      .map((game, index) => (
-                        <GameCard
-                          key={game.id}
-                          game={game}
-                          index={index}
-                        />
-                      ))}
+                    {games.slice(0, 3).map((game, index) => (
+                      <GameCard key={game.id} game={game} index={index} />
+                    ))}
 
                     {games.length === 0 && (
                       <div className="empty-panel">
                         <span>⚽</span>
                         <h3>Be the first to kick off.</h3>
                         <p>
-                          No upcoming games yet. Create one and
-                          bring your squad together.
+                          No upcoming games yet. Create one and bring your squad
+                          together.
                         </p>
-
                         <button
                           className="lime-button"
                           onClick={() => setShowForm(true)}
@@ -739,21 +1480,184 @@ export default function Dashboard({ user, onLogout }) {
             </>
           )}
 
+          {page === "community" && (
+            <section className="content-section page-section potato-community-page">
+              <div className="potato-community-hero">
+                <div className="potato-community-hero-copy">
+                  <div className="section-eyebrow">
+                    KICKOFF CLUBHOUSE · SOUTH BENGALURU
+                  </div>
+                  <h1>
+                    Potatoes, <span>assemble.</span>
+                  </h1>
+                  <p>
+                    A community-first home for the people who make the game
+                    happen. Find your run, meet the squad, and keep the weekly
+                    football ritual alive.
+                  </p>
+
+                  <div className="potato-community-stats">
+                    <span>
+                      <strong>4</strong> weekly runs
+                    </span>
+                    <span>
+                      <strong>{games.length}</strong> active KICKOFF games
+                    </span>
+                    <span>
+                      <strong>{myGames.length}</strong> in your calendar
+                    </span>
+                  </div>
+                </div>
+
+                <div className="potato-community-mark">
+                  🥔
+                  <small>NO POTATO LEFT BEHIND</small>
+                </div>
+              </div>
+
+              <div className="potato-section-heading">
+                <div>
+                  <div className="section-eyebrow">THE HOME TURF CIRCLE</div>
+                  <h2>
+                    South Bengaluru, <span>one squad.</span>
+                  </h2>
+                  <p>
+                    Open to Potatoes from these neighbourhoods and nearby areas.
+                  </p>
+                </div>
+
+                <button
+                  className="outline-button"
+                  onClick={() =>
+                    shareText(
+                      "Join Potato FC, the South Bengaluru football community on KICKOFF. Everyone from Koramangala, HSR, BTM, JP Nagar, Jayanagar, Banashankari, Electronic City, Sarjapur Road, Kumaraswamy Layout and nearby areas is welcome."
+                    )
+                  }
+                >
+                  Invite community ↗
+                </button>
+              </div>
+
+              <div className="neighborhood-chips">
+                {POTATO_NEIGHBORHOODS.map((area) => (
+                  <span key={area}>{area}</span>
+                ))}
+              </div>
+
+              <div className="potato-section-heading schedule-heading">
+                <div>
+                  <div className="section-eyebrow">
+                    NEXT WEEK · WEEKLY ROUTINE
+                  </div>
+                  <h2>
+                    Four chances to <span>get a game in.</span>
+                  </h2>
+                  <p>
+                    Dates roll forward every week. Times, booking and price
+                    must be confirmed by the organiser before a live KICKOFF
+                    match is published.
+                  </p>
+                </div>
+              </div>
+
+              <div className="weekly-run-grid">
+                {WEEKLY_RUNS.map((run) => (
+                  <article
+                    className={`weekly-run-card run-${run.accent}`}
+                    key={run.id}
+                  >
+                    <div className="weekly-run-top">
+                      <span className="weekly-run-day">{run.day}</span>
+                      <span className="weekly-run-format">
+                        {run.formatLabel}
+                      </span>
+                    </div>
+
+                    <div className="weekly-run-date">
+                      {new Date(`${run.date}T12:00:00`).toLocaleDateString(
+                        "en-IN",
+                        { day: "numeric", month: "short" }
+                      )}
+                    </div>
+
+                    <h3>{run.venueName}</h3>
+                    <p className="weekly-run-subtitle">
+                      Potato FC · {run.formatLabel} football
+                    </p>
+
+                    <div className="weekly-run-detail">
+                      <span>⌖</span>
+                      {run.venueName === "Verve Play"
+                        ? "Jayanagar"
+                        : "Padmanabhanagar"}
+                    </div>
+
+                    <div className="weekly-run-detail">
+                      <span>◷</span>Kick-off time to be set
+                    </div>
+
+                    <div className="weekly-run-detail">
+                      <span>₹</span>Price to be confirmed by organiser
+                    </div>
+
+                    <button
+                      className="lime-button weekly-run-cta"
+                      onClick={() => startFromTemplate(run)}
+                    >
+                      Set up in KICKOFF ↗
+                    </button>
+
+                    <a
+                      className="weekly-run-reference"
+                      href={run.playoUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Original session reference ↗
+                    </a>
+                  </article>
+                ))}
+              </div>
+
+              <div className="potato-community-notes">
+                <div>
+                  <span>01</span>
+                  <strong>Player card first</strong>
+                  <p>
+                    Keep your level and position current so organisers know how
+                    to balance the squad.
+                  </p>
+                </div>
+                <div>
+                  <span>02</span>
+                  <strong>Clear headcount</strong>
+                  <p>
+                    Join in KICKOFF so everyone can see the live number of slots
+                    claimed.
+                  </p>
+                </div>
+                <div>
+                  <span>03</span>
+                  <strong>Show up for the squad</strong>
+                  <p>
+                    If plans change, tell the organiser early. Payment and
+                    cancellation rules stay visible on each match.
+                  </p>
+                </div>
+              </div>
+            </section>
+          )}
+
           {page === "games" && (
             <section className="content-section page-section">
               <div className="section-heading">
                 <div>
-                  <div className="section-eyebrow">
-                    GET IN THE GAME
-                  </div>
-
+                  <div className="section-eyebrow">GET IN THE GAME</div>
                   <h1>
                     {pageTitle}<span>.</span>
                   </h1>
-
                   <p>
-                    Browse upcoming community matches and claim
-                    your spot.
+                    Browse upcoming community matches and claim your spot.
                   </p>
                 </div>
 
@@ -805,11 +1709,7 @@ export default function Dashboard({ user, onLogout }) {
               ) : (
                 <div className="games-grid">
                   {visibleGames.map((game, index) => (
-                    <GameCard
-                      key={game.id}
-                      game={game}
-                      index={index}
-                    />
+                    <GameCard key={game.id} game={game} index={index} />
                   ))}
 
                   {visibleGames.length === 0 && (
@@ -817,10 +1717,8 @@ export default function Dashboard({ user, onLogout }) {
                       <span>⌕</span>
                       <h3>No matches found.</h3>
                       <p>
-                        Try another search or create a game for
-                        your community.
+                        Try another search or create a game for your community.
                       </p>
-
                       <button
                         className="lime-button"
                         onClick={() => setShowForm(true)}
@@ -847,14 +1745,11 @@ export default function Dashboard({ user, onLogout }) {
               <div className="section-heading">
                 <div>
                   <div className="section-eyebrow">YOUR LINE-UP</div>
-
                   <h1>
                     {pageTitle}<span>.</span>
                   </h1>
-
                   <p>
-                    Every match you've joined and every game
-                    you're organising.
+                    Every match you've joined and every game you're organising.
                   </p>
                 </div>
 
@@ -866,18 +1761,143 @@ export default function Dashboard({ user, onLogout }) {
                 </button>
               </div>
 
+              {paymentRequests.some(
+                (request) =>
+                  String(request.status || "").toUpperCase() === "PENDING" &&
+                  games.some(
+                    (game) =>
+                      game.id === request.game_id &&
+                      game.organiser_id === user.id
+                  )
+              ) && (
+                <section className="content-section payment-approval-section">
+                  <div className="section-heading">
+                    <div>
+                      <div className="section-eyebrow">HOST CONTROLS</div>
+                      <h2>
+                        Payment requests<span>.</span>
+                      </h2>
+                      <p>
+                        Check your UPI app first. A transaction reference alone
+                        is not proof of payment.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "grid", gap: "12px" }}>
+                    {paymentRequests
+                      .filter(
+                        (request) =>
+                          String(request.status || "").toUpperCase() ===
+                            "PENDING" &&
+                          games.some(
+                            (game) =>
+                              game.id === request.game_id &&
+                              game.organiser_id === user.id
+                          )
+                      )
+                      .map((request) => {
+                        const requestGame = games.find(
+                          (game) => game.id === request.game_id
+                        );
+                        const busy = reviewingRequestId === request.id;
+
+                        return (
+                          <article
+                            key={request.id}
+                            className="profile-panel"
+                            style={{
+                              padding: "18px",
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: "10px",
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: "flex",
+                                flexWrap: "wrap",
+                                justifyContent: "space-between",
+                                gap: "8px",
+                              }}
+                            >
+                              <strong>{requestGame?.title || "Game payment"}</strong>
+                              <span className="section-eyebrow">
+                                PENDING VERIFICATION
+                              </span>
+                            </div>
+
+                            <div>
+                              Player ID: <code>{request.player_id.slice(0, 8)}…</code>
+                            </div>
+
+                            <div>
+                              Amount reported:{" "}
+                              <strong>
+                                ₹
+                                {(
+                                  Number(request.amount_paise || 0) / 100
+                                ).toLocaleString("en-IN")}
+                              </strong>
+                              {" · "}
+                              {request.slots_count} slot(s)
+                            </div>
+
+                            <div>
+                              Playing level:{" "}
+                              <strong>{request.match_skill_level || "Beginner"}</strong>
+                            </div>
+
+                            <div>
+                              UPI reference: <code>{request.upi_reference}</code>
+                            </div>
+
+                            <p className="form-note" style={{ margin: 0 }}>
+                              Open your own UPI app and confirm the amount and
+                              transaction before approving. Approval reserves the
+                              slots in KICKOFF.
+                            </p>
+
+                            <div
+                              style={{
+                                display: "flex",
+                                flexWrap: "wrap",
+                                gap: "8px",
+                              }}
+                            >
+                              <button
+                                type="button"
+                                className="lime-button"
+                                disabled={busy}
+                                onClick={() => reviewPaymentRequest(request, true)}
+                              >
+                                {busy
+                                  ? "Saving…"
+                                  : "I verified payment — approve"}
+                              </button>
+
+                              <button
+                                type="button"
+                                className="outline-dark-button"
+                                disabled={busy}
+                                onClick={() => reviewPaymentRequest(request, false)}
+                              >
+                                Reject request
+                              </button>
+                            </div>
+                          </article>
+                        );
+                      })}
+                  </div>
+                </section>
+              )}
+
               {loading ? (
-                <div className="empty-panel">
-                  Loading your games…
-                </div>
+                <div className="empty-panel">Loading your games…</div>
               ) : (
                 <div className="games-grid">
                   {myGames.map((game, index) => (
-                    <GameCard
-                      key={game.id}
-                      game={game}
-                      index={index}
-                    />
+                    <GameCard key={game.id} game={game} index={index} />
                   ))}
 
                   {myGames.length === 0 && (
@@ -887,7 +1907,6 @@ export default function Dashboard({ user, onLogout }) {
                       <p>
                         Join a match or organise one to see it here.
                       </p>
-
                       <button
                         className="lime-button"
                         onClick={() => goTo("games")}
@@ -905,17 +1924,13 @@ export default function Dashboard({ user, onLogout }) {
             <section className="content-section page-section">
               <div className="section-heading">
                 <div>
-                  <div className="section-eyebrow">
-                    FIND YOUR GROUND
-                  </div>
-
+                  <div className="section-eyebrow">FIND YOUR GROUND</div>
                   <h1>
                     {pageTitle}<span>.</span>
                   </h1>
-
                   <p>
-                    Explore active venue listings. Live availability
-                    and booking are not connected yet.
+                    Explore active venue listings. Live availability and
+                    booking are not connected yet.
                   </p>
                 </div>
               </div>
@@ -942,10 +1957,7 @@ export default function Dashboard({ user, onLogout }) {
                         .includes(search.toLowerCase())
                     )
                     .map((venue) => (
-                      <article
-                        className="turf-card"
-                        key={venue.id}
-                      >
+                      <article className="turf-card" key={venue.id}>
                         <div className="turf-art">
                           <span>🏟</span>
                           <small>VENUE LISTING</small>
@@ -977,8 +1989,8 @@ export default function Dashboard({ user, onLogout }) {
                       <span>⌖</span>
                       <h3>No turfs listed yet.</h3>
                       <p>
-                        Active venue listings will show up here
-                        when added by the team.
+                        Active venue listings will show up here when added by
+                        the team.
                       </p>
                     </div>
                   )}
@@ -992,64 +2004,209 @@ export default function Dashboard({ user, onLogout }) {
               <div className="section-heading">
                 <div>
                   <div className="section-eyebrow">PLAYER ID</div>
-
-                  <h1>
-                    {pageTitle}<span>.</span>
-                  </h1>
-
+                  <h1>Your player card<span>.</span></h1>
                   <p>
-                    Your KICKOFF account and football activity.
+                    Tell your squad how you play. You only need to set this up
+                    once.
                   </p>
+                </div>
+
+                <div
+                  className={`profile-status-pill ${
+                    profileComplete ? "is-complete" : "is-incomplete"
+                  }`}
+                >
+                  <span />
+                  {profileComplete ? "PROFILE READY" : "SETUP REQUIRED"}
                 </div>
               </div>
 
-              <div className="profile-panel">
+              <div className="profile-panel player-profile-panel">
                 <div className="profile-cover">
-                  <span>KICKOFF PLAYER</span>
-
-                  <div className="profile-big-avatar">
-                    {initials || "P"}
+                  <span>KICKOFF · PLAYER ID</span>
+                  <div className="profile-big-avatar">{initials || "P"}</div>
+                  <div className="profile-cover-tag">
+                    {playerProfile.skill_level || "CHOOSE YOUR LEVEL"}
                   </div>
                 </div>
 
-                <div className="profile-details">
-                  <div>
-                    <div className="section-eyebrow">
-                      PLAYER NAME
+                <form
+                  className="profile-edit-form"
+                  key={profileLoaded ? "profile-loaded" : "profile-loading"}
+                  onSubmit={savePlayerProfile}
+                >
+                  <div className="profile-form-intro">
+                    <div>
+                      <div className="section-eyebrow">YOUR PLAYER DETAILS</div>
+                      <h2>
+                        {profileComplete
+                          ? "Keep your card current"
+                          : "Build your player card"}
+                      </h2>
+                      <p>
+                        Your name, playing level and main position are required
+                        before joining or publishing a match.
+                      </p>
                     </div>
-                    <h2>{displayName}</h2>
+
+                    <span className="profile-form-icon">⚽</span>
                   </div>
 
-                  <div>
-                    <div className="section-eyebrow">
-                      EMAIL ADDRESS
-                    </div>
-                    <p>{user.email}</p>
+                  <label>
+                    Full name <span className="required-mark">*</span>
+                    <input
+                      name="full_name"
+                      type="text"
+                      minLength={2}
+                      maxLength={60}
+                      autoComplete="name"
+                      defaultValue={playerProfile.full_name}
+                      placeholder="Your full name"
+                      required
+                    />
+                  </label>
+
+                  <div className="form-two-columns">
+                    <label>
+                      Playing level <span className="required-mark">*</span>
+                      <select
+                        name="skill_level"
+                        defaultValue={playerProfile.skill_level || ""}
+                        required
+                      >
+                        <option value="">Choose your level</option>
+                        <option value="Beginner">Beginner</option>
+                        <option value="Intermediate">Intermediate</option>
+                        <option value="Amateur">Amateur</option>
+                        <option value="Professional">Professional</option>
+                      </select>
+                    </label>
+
+                    <label>
+                      Main position <span className="required-mark">*</span>
+                      <select
+                        name="primary_position"
+                        defaultValue={playerProfile.primary_position || ""}
+                        required
+                      >
+                        <option value="">Choose a position</option>
+                        <option value="Goalkeeper">Goalkeeper</option>
+                        <option value="Defender">Defender</option>
+                        <option value="Midfielder">Midfielder</option>
+                        <option value="Forward">Forward</option>
+                        <option value="Flexible / Any">Flexible / Any</option>
+                      </select>
+                    </label>
                   </div>
 
-                  <div className="profile-metrics">
-                    <div>
-                      <strong>{myGames.length}</strong>
-                      <span>Your matches</span>
-                    </div>
+                  <div className="form-two-columns">
+                    <label>
+                      Secondary position <small>(optional)</small>
+                      <select
+                        name="secondary_position"
+                        defaultValue={playerProfile.secondary_position || ""}
+                      >
+                        <option value="">None</option>
+                        <option value="Goalkeeper">Goalkeeper</option>
+                        <option value="Defender">Defender</option>
+                        <option value="Midfielder">Midfielder</option>
+                        <option value="Forward">Forward</option>
+                        <option value="Flexible / Any">Flexible / Any</option>
+                      </select>
+                    </label>
 
-                    <div>
-                      <strong>{games.length}</strong>
-                      <span>Open games</span>
-                    </div>
+                    <label>
+                      Preferred foot
+                      <select
+                        name="preferred_foot"
+                        defaultValue={playerProfile.preferred_foot || "Right"}
+                      >
+                        <option value="Right">Right-footed</option>
+                        <option value="Left">Left-footed</option>
+                        <option value="Both">Both feet</option>
+                      </select>
+                    </label>
+                  </div>
 
-                    <div>
-                      <strong>{venues.length}</strong>
-                      <span>Active venues</span>
+                  <div className="form-two-columns">
+                    <label>
+                      Jersey number <small>(optional)</small>
+                      <input
+                        name="jersey_number"
+                        type="number"
+                        min="0"
+                        max="99"
+                        defaultValue={playerProfile.jersey_number ?? ""}
+                        placeholder="e.g. 10"
+                      />
+                    </label>
+
+                    <label>
+                      Email address
+                      <input
+                        type="email"
+                        value={user.email || ""}
+                        readOnly
+                        disabled
+                      />
+                    </label>
+                  </div>
+
+                  <label>
+                    Short player intro <small>(optional · max 240 characters)</small>
+                    <textarea
+                      name="bio"
+                      rows={3}
+                      maxLength={240}
+                      defaultValue={playerProfile.bio || ""}
+                      placeholder="Your style of play, experience, or what kind of games you enjoy…"
+                    />
+                  </label>
+
+                  <div className="profile-preview-strip">
+                    <div className="profile-preview-avatar">{initials || "P"}</div>
+                    <div className="profile-preview-copy">
+                      <strong>{displayName}</strong>
+                      <span>
+                        {playerProfile.skill_level || "Level not set"}
+                        {" · "}
+                        {playerProfile.primary_position || "Position not set"}
+                      </span>
                     </div>
+                    <span className="profile-preview-check">
+                      {profileComplete ? "✓ SAVED" : "PLAYER CARD"}
+                    </span>
                   </div>
 
                   <button
-                    className="outline-dark-button"
-                    onClick={onLogout}
+                    className="lime-button submit-button"
+                    type="submit"
+                    disabled={profileSaving}
                   >
-                    Log out ↗
+                    {profileSaving
+                      ? "Saving player card…"
+                      : profileComplete
+                      ? "Save player card ↗"
+                      : "Save & get match-ready ↗"}
                   </button>
+                </form>
+              </div>
+
+              <div className="profile-benefit-row">
+                <div>
+                  <span>01</span>
+                  <strong>Find your fit</strong>
+                  <small>Hosts can see your level and role.</small>
+                </div>
+                <div>
+                  <span>02</span>
+                  <strong>Join faster</strong>
+                  <small>Your player details are reused.</small>
+                </div>
+                <div>
+                  <span>03</span>
+                  <strong>Play as a squad</strong>
+                  <small>Meet the players already signed up.</small>
                 </div>
               </div>
             </section>
@@ -1074,7 +2231,6 @@ export default function Dashboard({ user, onLogout }) {
               <span className="brand-mark">
                 K<span>•</span>
               </span>
-
               <span className="brand-word">
                 KICK<span>OFF</span>
               </span>
@@ -1094,7 +2250,6 @@ export default function Dashboard({ user, onLogout }) {
             onClick={() => goTo(item.id)}
           >
             <span>{item.icon}</span>
-
             <small>
               {item.label === "Find a game"
                 ? "Games"
@@ -1104,6 +2259,8 @@ export default function Dashboard({ user, onLogout }) {
                 ? "Turfs"
                 : item.label === "My games"
                 ? "My games"
+                : item.id === "community"
+                ? "Potato FC"
                 : "Home"}
             </small>
           </button>
@@ -1114,27 +2271,38 @@ export default function Dashboard({ user, onLogout }) {
         <div
           className="modal-backdrop"
           onClick={(event) => {
-            if (
-              event.target === event.currentTarget &&
-              !saving
-            ) {
+            if (event.target === event.currentTarget && !saving) {
               setShowForm(false);
+              setGameDraftTemplate(null);
             }
           }}
         >
-          <form className="game-form" onSubmit={createGame}>
+          <form
+            className="game-form"
+            key={gameDraftTemplate?.id || "manual-game"}
+            onSubmit={createGame}
+          >
             <div className="form-heading">
               <div>
-                <div className="section-eyebrow">
-                  BRING YOUR SQUAD
-                </div>
+                <div className="section-eyebrow">BRING YOUR SQUAD</div>
 
                 <h2>
-                  Organise a game<span>.</span>
+                  {gameDraftTemplate
+                    ? "Set up the weekly run"
+                    : "Organise a game"}
+                  <span>.</span>
                 </h2>
 
                 <p>
-                  Set the details. We'll bring the players.
+                  {gameDraftTemplate
+                    ? `${gameDraftTemplate.day} · ${gameDraftTemplate.formatLabel} · ${new Date(
+                        `${gameDraftTemplate.date}T12:00:00`
+                      ).toLocaleDateString("en-IN", {
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                      })}. Confirm the time and price before publishing.`
+                    : "Set the details. We'll bring the players."}
                 </p>
               </div>
 
@@ -1142,7 +2310,10 @@ export default function Dashboard({ user, onLogout }) {
                 type="button"
                 className="close-button"
                 disabled={saving}
-                onClick={() => setShowForm(false)}
+                onClick={() => {
+                  setShowForm(false);
+                  setGameDraftTemplate(null);
+                }}
               >
                 ×
               </button>
@@ -1153,6 +2324,7 @@ export default function Dashboard({ user, onLogout }) {
               <input
                 name="title"
                 placeholder="e.g. Friday Night Football"
+                defaultValue={gameDraftTemplate?.title || ""}
                 maxLength={150}
                 required
               />
@@ -1160,16 +2332,13 @@ export default function Dashboard({ user, onLogout }) {
 
             <label>
               Venue
-              <select name="venue_id" defaultValue="">
-                <option value="">Venue to be confirmed</option>
-
-                {venues.map((venue) => (
-                  <option key={venue.id} value={venue.id}>
-                    {venue.name}
-                    {venue.city ? ` — ${venue.city}` : ""}
-                  </option>
-                ))}
-              </select>
+              <input
+                name="venue_name"
+                placeholder="e.g. Bengaluru Football Turf"
+                defaultValue={gameDraftTemplate?.venueName || ""}
+                maxLength={200}
+                required
+              />
             </label>
 
             <div className="form-two-columns">
@@ -1178,7 +2347,8 @@ export default function Dashboard({ user, onLogout }) {
                 <input
                   name="date"
                   type="date"
-                  min={new Date().toISOString().slice(0, 10)}
+                  min={localDateISO(new Date())}
+                  defaultValue={gameDraftTemplate?.date || ""}
                   required
                 />
               </label>
@@ -1201,7 +2371,10 @@ export default function Dashboard({ user, onLogout }) {
 
               <label>
                 Match format
-                <select name="format" defaultValue="7-a-side">
+                <select
+                  name="format"
+                  defaultValue={gameDraftTemplate?.format || "7-a-side"}
+                >
                   <option>5-a-side</option>
                   <option>7-a-side</option>
                   <option>9-a-side</option>
@@ -1212,34 +2385,47 @@ export default function Dashboard({ user, onLogout }) {
 
             <div className="form-two-columns">
               <label>
-                Price per player (₹)
+                Price per slot (₹)
                 <input
                   name="price"
                   type="number"
                   min="0"
                   max="100000"
                   step="1"
-                  defaultValue="200"
+                  defaultValue={gameDraftTemplate ? "" : "200"}
                   required
                 />
               </label>
 
               <label>
-                Total player spots
+                Total slots available
                 <input
                   name="total"
                   type="number"
                   min="2"
                   max="50"
-                  defaultValue="14"
+                  defaultValue={gameDraftTemplate?.maxPlayers || 14}
                   required
                 />
               </label>
             </div>
 
+            <label>
+              Host UPI ID <small>(required for paid games)</small>
+              <input
+                name="host_upi_id"
+                type="text"
+                placeholder="yourname@upi"
+                maxLength={100}
+                autoCapitalize="none"
+                autoCorrect="off"
+              />
+            </label>
+
             <p className="form-note">
-              This publishes a community match. It does not reserve
-              a turf or collect payments.
+              Players pay separately in their UPI app and submit a transaction
+              reference. You must verify each payment yourself before approving
+              slots. This does not reserve a turf.
             </p>
 
             <button
@@ -1248,6 +2434,258 @@ export default function Dashboard({ user, onLogout }) {
               disabled={saving}
             >
               {saving ? "Saving match…" : "Publish game ↗"}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {freeJoinGame && (
+        <div
+          className="modal-backdrop"
+          onClick={(event) => {
+            if (
+              event.target === event.currentTarget &&
+              joiningGameId !== freeJoinGame.id
+            ) {
+              setFreeJoinGame(null);
+            }
+          }}
+        >
+          <form className="game-form" onSubmit={confirmFreeJoin}>
+            <div className="form-heading">
+              <div>
+                <div className="section-eyebrow">
+                  POTATO FC · TEAM BALANCING
+                </div>
+                <h2>
+                  Pick your match level<span>.</span>
+                </h2>
+                <p>{freeJoinGame.title}</p>
+              </div>
+
+              <button
+                type="button"
+                className="close-button"
+                disabled={joiningGameId === freeJoinGame.id}
+                onClick={() => setFreeJoinGame(null)}
+              >
+                ×
+              </button>
+            </div>
+
+            <label>
+              Your playing level for this match
+              <select
+                value={selectedMatchSkillLevel}
+                onChange={(event) =>
+                  setSelectedMatchSkillLevel(event.target.value)
+                }
+                required
+              >
+                <option value="Beginner">Beginner</option>
+                <option value="Intermediate">Intermediate</option>
+                <option value="Amateur">Amateur</option>
+                <option value="Professional">Professional</option>
+              </select>
+            </label>
+
+            <div className="kit-choice-preview">
+              <div className="kit-choice kit-choice-black">
+                <span>◉</span>
+                <strong>BLACK TEAM</strong>
+                <small>Dark jersey</small>
+              </div>
+              <div className="kit-choice kit-choice-white">
+                <span>◉</span>
+                <strong>WHITE TEAM</strong>
+                <small>Light jersey</small>
+              </div>
+            </div>
+
+            <p className="form-note">
+              Your selected level is used to balance the match. KICKOFF
+              automatically distributes confirmed players between Black and
+              White, then rebalances as players join.
+            </p>
+
+            <button
+              className="lime-button submit-button"
+              type="submit"
+              disabled={joiningGameId === freeJoinGame.id}
+            >
+              {joiningGameId === freeJoinGame.id
+                ? "Joining match…"
+                : "Confirm level & join ↗"}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {paymentGame && (
+        <div
+          className="modal-backdrop"
+          onClick={(event) => {
+            if (
+              event.target === event.currentTarget &&
+              joiningGameId !== paymentGame.id
+            ) {
+              setPaymentGame(null);
+            }
+          }}
+        >
+          <form className="game-form" onSubmit={submitPaymentRequest}>
+            <div className="form-heading">
+              <div>
+                <div className="section-eyebrow">DIRECT UPI PAYMENT</div>
+                <h2>
+                  Request your slots<span>.</span>
+                </h2>
+                <p>{paymentGame.title}</p>
+              </div>
+
+              <button
+                type="button"
+                className="close-button"
+                disabled={joiningGameId === paymentGame.id}
+                onClick={() => setPaymentGame(null)}
+              >
+                ×
+              </button>
+            </div>
+
+            <div
+              className="profile-panel"
+              style={{
+                padding: "14px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "8px",
+              }}
+            >
+              <span className="section-eyebrow">PAY THE HOST</span>
+              <strong style={{ overflowWrap: "anywhere" }}>
+                {paymentGame.host_upi_id}
+              </strong>
+
+              <button
+                type="button"
+                className="outline-dark-button"
+                onClick={() => copyHostUpi(paymentGame.host_upi_id)}
+              >
+                Copy host UPI ID
+              </button>
+
+              <p className="form-note" style={{ margin: 0 }}>
+                Open your UPI app separately, pay the host, and return here.
+                KICKOFF does not automatically verify bank or UPI payments.
+              </p>
+            </div>
+
+            <label>
+              Number of slots
+              <input
+                type="number"
+                min="1"
+                max={Math.max(
+                  1,
+                  Math.min(
+                    50,
+                    Number(paymentGame.max_players) -
+                      (participantCounts[paymentGame.id] || 0)
+                  )
+                )}
+                value={paymentSlots}
+                onChange={(event) => setPaymentSlots(event.target.value)}
+                required
+              />
+            </label>
+
+            <label>
+              Playing level for this match
+              <select
+                value={selectedMatchSkillLevel}
+                onChange={(event) =>
+                  setSelectedMatchSkillLevel(event.target.value)
+                }
+                required
+              >
+                <option value="Beginner">Beginner</option>
+                <option value="Intermediate">Intermediate</option>
+                <option value="Amateur">Amateur</option>
+                <option value="Professional">Professional</option>
+              </select>
+            </label>
+
+            <p className="form-note">
+              Choose honestly so Potato FC can balance the Black and White
+              teams. This level applies to all slots in this booking.
+            </p>
+
+            <div className="kit-choice-preview">
+              <div className="kit-choice kit-choice-black">
+                <span>◉</span>
+                <strong>BLACK TEAM</strong>
+                <small>Dark jersey</small>
+              </div>
+              <div className="kit-choice kit-choice-white">
+                <span>◉</span>
+                <strong>WHITE TEAM</strong>
+                <small>Light jersey</small>
+              </div>
+            </div>
+
+            <div
+              className="profile-panel"
+              style={{
+                padding: "14px",
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "8px",
+              }}
+            >
+              <span>Total to pay</span>
+              <strong>
+                ₹
+                {(
+                  (Number(paymentGame.price_per_player_paise || 0) / 100) *
+                  Math.max(0, Number(paymentSlots) || 0)
+                ).toLocaleString("en-IN")}
+              </strong>
+            </div>
+
+            <label>
+              UPI transaction reference / UTR
+              <input
+                value={upiReference}
+                onChange={(event) => setUpiReference(event.target.value)}
+                placeholder="Enter the reference shown by your UPI app"
+                minLength={4}
+                maxLength={100}
+                autoCapitalize="characters"
+                required
+              />
+            </label>
+
+            <p className="form-note">
+              Submitting a reference does not prove payment. Your slots are
+              not confirmed until the host checks their UPI app and approves
+              your request.
+            </p>
+
+            <button
+              className="lime-button submit-button"
+              type="submit"
+              disabled={
+                joiningGameId === paymentGame.id ||
+                Number(paymentSlots) < 1 ||
+                Number(paymentSlots) >
+                  Number(paymentGame.max_players) -
+                    (participantCounts[paymentGame.id] || 0)
+              }
+            >
+              {joiningGameId === paymentGame.id
+                ? "Submitting request…"
+                : "Submit payment reference ↗"}
             </button>
           </form>
         </div>
