@@ -1,12 +1,8 @@
 
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&display=swap');
 
-/* ========================================
-   KICKOFF × POTATO FC — DESIGN SYSTEM
-======================================== */
-
 :root {
-  font-family: "DM Sans", sans-serif;
+  font-family: 'DM Sans', sans-serif;
   color: #f5f7f3;
   background: #10120f;
   font-synthesis: none;
@@ -62,23 +58,15 @@ textarea:focus-visible {
   outline-offset: 3px;
 }
 
+/* ========================================
+   APP LAYOUT
+======================================== */
+
 .kickoff-app {
   min-height: 100vh;
   background: var(--bg);
   color: var(--white);
 }
-
-a {
-  color: inherit;
-}
-
-img {
-  max-width: 100%;
-}
-
-/* ========================================
-   SIDEBAR / NAVIGATION
-======================================== */
 
 .sidebar {
   position: fixed;
@@ -111,9 +99,9 @@ img {
   color: #10120f;
   display: grid;
   place-items: center;
-  flex-shrink: 0;
   font: 900 21px Outfit, sans-serif;
   letter-spacing: -2px;
+  flex-shrink: 0;
 }
 
 .brand-mark span {
@@ -237,12 +225,12 @@ img {
 .profile-big-avatar {
   display: grid;
   place-items: center;
-  flex-shrink: 0;
   background: var(--lime);
   color: #11150d;
   font-weight: 900;
   font-family: Outfit, sans-serif;
   border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .avatar {
@@ -280,7 +268,7 @@ img {
 }
 
 /* ========================================
-   MAIN LAYOUT / BUTTONS
+   MAIN CONTENT
 ======================================== */
 
 .main-shell {
@@ -333,11 +321,15 @@ img {
   display: inline-block;
   width: 7px;
   height: 7px;
-  flex-shrink: 0;
   border-radius: 50%;
   background: var(--lime);
   box-shadow: 0 0 10px #c7ff4540;
+  flex-shrink: 0;
 }
+
+/* ========================================
+   BUTTONS
+======================================== */
 
 .lime-button,
 .outline-button,
@@ -473,9 +465,17 @@ img {
   aspect-ratio: 1;
 }
 
-.ring-one { width: 95%; }
-.ring-two { width: 72%; }
-.ring-three { width: 49%; }
+.ring-one {
+  width: 95%;
+}
+
+.ring-two {
+  width: 72%;
+}
+
+.ring-three {
+  width: 49%;
+}
 
 .hero-stamp {
   position: absolute;
@@ -626,12 +626,12 @@ img {
 }
 
 /* ========================================
-   POTATO FC COMMUNITY HOME CARD
+   HOME — POTATO FC FEATURE CARD
 ======================================== */
 
 .potato-home-card {
   display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(200px, .55fr);
+  grid-template-columns: minmax(0, 1.45fr) minmax(190px, .55fr);
   align-items: center;
   gap: 28px;
   position: relative;
@@ -715,7 +715,7 @@ img {
 }
 
 /* ========================================
-   GENERAL CONTENT HEADINGS
+   CONTENT SECTIONS / HEADINGS
 ======================================== */
 
 .content-section {
@@ -766,7 +766,7 @@ img {
 }
 
 /* ========================================
-   GAME CARDS / MATCH AVATAR ART
+   MATCH CARDS
 ======================================== */
 
 .games-grid,
@@ -784,7 +784,10 @@ img {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 13px;
-  transition: transform .2s, border-color .2s, box-shadow .2s;
+  transition:
+    transform .2s,
+    border-color .2s,
+    box-shadow .2s;
 }
 
 .game-card:hover,
@@ -961,7 +964,7 @@ img {
 }
 
 .game-action {
-  max-width: 65%;
+  max-width: 60%;
   border: 1px solid var(--lime);
   border-radius: 7px;
   background: var(--lime);
@@ -971,6 +974,8 @@ img {
   font-weight: 900;
   white-space: normal;
   text-align: center;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .game-action:hover:not(:disabled) {
@@ -982,6 +987,972 @@ img {
   border-color: #3c4434;
   color: #c5ceb9;
 }
+
+.empty-panel {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 50px 20px;
+  background: var(--panel);
+  border: 1px dashed #3a4233;
+  border-radius: 13px;
+  color: #a1a997;
+  font-size: 12px;
+  line-height: 1.8;
+}
+
+.empty-panel > span {
+  font-size: 34px;
+  color: var(--lime);
+}
+
+.empty-panel h3 {
+  font: 700 20px Outfit, sans-serif;
+  color: var(--white);
+  margin: 10px 0 5px;
+}
+
+.empty-panel p {
+  margin: 0 0 18px;
+}
+
+/* ========================================
+   SEARCH / FEEDBACK
+======================================== */
+
+.toolbar {
+  display: flex;
+  gap: 10px;
+  margin: 24px 0 20px;
+}
+
+.search-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel);
+  padding: 0 14px;
+}
+
+.search-control > span {
+  font-size: 21px;
+  color: var(--lime);
+}
+
+.search-control input {
+  width: 100%;
+  min-width: 0;
+  padding: 13px 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--white);
+  font-size: 11px;
+}
+
+.search-control input::placeholder {
+  color: #747d6e;
+}
+
+.toolbar select {
+  min-width: 150px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel);
+  color: #d9dfd2;
+  padding: 0 12px;
+  font-size: 10px;
+}
+
+.refresh-button {
+  display: block;
+  margin: 23px auto 0;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: #a9b19f;
+  font-size: 10px;
+}
+
+.feedback {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  margin-bottom: 17px;
+  border-radius: 8px;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.feedback button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 19px;
+}
+
+.success {
+  background: #202d18;
+  border: 1px solid #42582b;
+  color: #d8f8a4;
+}
+
+.failure {
+  background: #321f1d;
+  border: 1px solid #65332e;
+  color: #ffb0a6;
+}
+
+.global-feedback {
+  margin-bottom: 25px;
+}
+
+/* ========================================
+   TURF LISTINGS
+======================================== */
+
+.turf-search {
+  max-width: 550px;
+  margin: 25px 0;
+}
+
+.turf-art {
+  height: 155px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  background: radial-gradient(circle at center, #3e5929, #202c1c);
+}
+
+.turf-art span {
+  font-size: 48px;
+}
+
+.turf-art small {
+  color: #c2d4af;
+  font-size: 8px;
+  letter-spacing: 1.5px;
+}
+
+.turf-info {
+  padding: 17px;
+}
+
+.turf-info h3 {
+  margin-top: 9px;
+}
+
+.turf-info p {
+  font-size: 10px;
+  color: #9aa392;
+  line-height: 1.7;
+}
+
+.turf-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  color: #b5c0aa;
+  font-size: 9px;
+}
+
+.turf-status > span:last-child {
+  margin-left: auto;
+  color: #9b9f92;
+  text-align: right;
+}
+
+/* ========================================
+   PROFILE PAGE
+======================================== */
+
+.profile-panel {
+  max-width: 680px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: var(--panel);
+}
+
+.player-profile-panel {
+  max-width: 760px;
+}
+
+.profile-cover {
+  height: 160px;
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 20px;
+  background:
+    radial-gradient(circle at 15% 15%, #364927, transparent 40%),
+    linear-gradient(120deg, #262e20, #171a15);
+}
+
+.profile-cover > span {
+  color: #c8d7b9;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 2px;
+}
+
+.profile-big-avatar {
+  position: absolute;
+  bottom: -30px;
+  left: 25px;
+  width: 76px;
+  height: 76px;
+  border: 5px solid var(--panel);
+  font-size: 25px;
+}
+
+.profile-details {
+  padding: 48px 25px 25px;
+  display: grid;
+  gap: 22px;
+}
+
+.profile-details h2 {
+  font: 700 24px Outfit, sans-serif;
+  margin: 7px 0;
+}
+
+.profile-details p {
+  font-size: 12px;
+  color: #c1c8b9;
+}
+
+.profile-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.profile-metrics > div {
+  padding: 15px;
+  border-right: 1px solid var(--line);
+}
+
+.profile-metrics > div:last-child {
+  border-right: 0;
+}
+
+.profile-metrics strong,
+.profile-metrics span {
+  display: block;
+}
+
+.profile-metrics strong {
+  font: 700 22px Outfit, sans-serif;
+  color: var(--lime);
+}
+
+.profile-metrics span {
+  font-size: 9px;
+  color: #9ca594;
+  margin-top: 5px;
+}
+
+.profile-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: #aeb7a3;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 1.1px;
+  white-space: nowrap;
+  background: #171a15;
+}
+
+.profile-status-pill > span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #a7ae9d;
+}
+
+.profile-status-pill.is-complete {
+  color: var(--lime);
+  border-color: #3a4b2d;
+  background: #1d2517;
+}
+
+.profile-status-pill.is-complete > span {
+  background: var(--lime);
+  box-shadow: 0 0 12px #c7ff4566;
+}
+
+.profile-status-pill.is-incomplete {
+  color: #ffd18b;
+  border-color: #5b4525;
+  background: #282014;
+}
+
+.profile-status-pill.is-incomplete > span {
+  background: #ffc56c;
+}
+
+.profile-cover-tag {
+  align-self: flex-end;
+  margin: 0 0 0 auto;
+  padding: 8px 11px;
+  border: 1px solid #c7ff4540;
+  border-radius: 6px;
+  background: #11160edb;
+  color: var(--lime);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 1.2px;
+}
+
+.profile-edit-form {
+  display: grid;
+  gap: 16px;
+  padding: 48px 25px 25px;
+}
+
+.profile-form-intro {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 8px;
+}
+
+.profile-form-intro h2 {
+  font: 700 25px/1.15 Outfit, sans-serif;
+  letter-spacing: -.6px;
+  color: var(--white);
+  margin: 8px 0;
+}
+
+.profile-form-intro p {
+  font-size: 11px;
+  line-height: 1.7;
+  color: #9ca594;
+  margin: 0;
+  max-width: 500px;
+}
+
+.profile-form-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border: 1px solid #465638;
+  border-radius: 12px;
+  background: #26331e;
+  font-size: 21px;
+}
+
+.profile-edit-form label {
+  display: block;
+  color: #cbd2c3;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.profile-edit-form label > small {
+  color: #818a78;
+  font-weight: 500;
+}
+
+.profile-edit-form input,
+.profile-edit-form select,
+.profile-edit-form textarea {
+  display: block;
+  width: 100%;
+  margin-top: 7px;
+  padding: 12px;
+  border: 1px solid #3a4234;
+  border-radius: 8px;
+  background: #11140f;
+  color: #f5f7f3;
+  font: 500 11px 'DM Sans', sans-serif;
+  min-height: 41px;
+}
+
+.profile-edit-form textarea {
+  resize: vertical;
+  line-height: 1.6;
+  min-height: 84px;
+}
+
+.profile-edit-form input:disabled {
+  opacity: .65;
+  color: #9ca594;
+  cursor: not-allowed;
+}
+
+.profile-edit-form input::placeholder,
+.profile-edit-form textarea::placeholder {
+  color: #747d6e;
+}
+
+.required-mark {
+  color: var(--lime);
+}
+
+.profile-preview-strip {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 13px;
+  border: 1px solid #343d2d;
+  border-radius: 10px;
+  background: linear-gradient(100deg, #222b1b, #1b1e18);
+}
+
+.profile-preview-avatar {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border: 1px solid #536b3b;
+  border-radius: 50%;
+  background: #354825;
+  color: var(--lime);
+  font: 800 12px Outfit, sans-serif;
+}
+
+.profile-preview-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.profile-preview-copy strong {
+  color: #f3f6ee;
+  font: 700 13px Outfit, sans-serif;
+  overflow-wrap: anywhere;
+}
+
+.profile-preview-copy span {
+  color: #9ba692;
+  font-size: 10px;
+}
+
+.profile-preview-check {
+  margin-left: auto;
+  color: var(--lime);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+.profile-benefit-row {
+  max-width: 760px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 13px;
+}
+
+.profile-benefit-row > div {
+  display: grid;
+  gap: 6px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #171a15;
+}
+
+.profile-benefit-row > div > span {
+  color: var(--lime);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+
+.profile-benefit-row strong {
+  font: 700 12px Outfit, sans-serif;
+  color: #eef2e8;
+}
+
+.profile-benefit-row small {
+  color: #8f9887;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+/* Profile setup banner */
+
+.profile-setup-banner {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin: 0 0 22px;
+  padding: 14px;
+  border: 1px solid #485735;
+  border-radius: 10px;
+  background: linear-gradient(100deg, #222b1b, #191c17);
+}
+
+.profile-setup-banner-icon {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: #344624;
+  color: var(--lime);
+  font-size: 18px;
+}
+
+.profile-setup-banner > div {
+  min-width: 0;
+}
+
+.profile-setup-banner strong {
+  display: block;
+  color: #f2f6eb;
+  font: 700 12px Outfit, sans-serif;
+}
+
+.profile-setup-banner p {
+  margin: 4px 0 0;
+  color: #a3ad98;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.profile-setup-banner button {
+  margin-left: auto;
+  flex-shrink: 0;
+  border: 1px solid #536a3b;
+  border-radius: 7px;
+  padding: 10px 12px;
+  background: var(--lime);
+  color: #151a10;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+/* Squad preview */
+
+.squad-preview {
+  margin-top: 15px;
+  padding-top: 13px;
+  border-top: 1px solid var(--line);
+}
+
+.squad-preview-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+  color: #8f9985;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+
+.squad-preview-heading span:last-child {
+  letter-spacing: 0;
+  font-weight: 600;
+  color: #a7b09c;
+}
+
+.squad-player-list {
+  display: grid;
+  gap: 8px;
+}
+
+.squad-player {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.squad-player-avatar {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border: 1px solid #405133;
+  border-radius: 50%;
+  background: #283421;
+  color: var(--lime);
+  font-size: 8px;
+  font-weight: 900;
+}
+
+.squad-player-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.squad-player-copy strong {
+  font-size: 9px;
+  line-height: 1.3;
+  color: #e5eadd;
+  overflow-wrap: anywhere;
+}
+
+.squad-player-copy small {
+  font-size: 8px;
+  color: #8f9985;
+}
+
+.squad-more {
+  padding-left: 34px;
+  color: var(--lime);
+  font-size: 8px;
+  font-weight: 800;
+}
+
+/* ========================================
+   POTATO FC COMMUNITY PAGE
+======================================== */
+
+.potato-community-page {
+  padding-top: 12px;
+}
+
+.potato-community-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 210px;
+  align-items: center;
+  gap: 26px;
+  min-height: 260px;
+  padding: clamp(25px, 4vw, 48px);
+  overflow: hidden;
+  border: 1px solid #3a452f;
+  border-radius: 17px;
+  background:
+    radial-gradient(circle at 83% 48%, #3a5025 0, transparent 26%),
+    radial-gradient(ellipse at 50% 100%, #26331e 0, transparent 58%),
+    linear-gradient(120deg, #20271b, #151813);
+}
+
+.potato-community-hero-copy {
+  min-width: 0;
+}
+
+.potato-community-hero-copy h1 {
+  font: 800 clamp(35px, 4.6vw, 57px)/1.02 Outfit, sans-serif;
+  letter-spacing: -2px;
+  margin: 16px 0 13px;
+}
+
+.potato-community-hero-copy h1 span {
+  color: var(--lime);
+}
+
+.potato-community-hero-copy > p {
+  max-width: 650px;
+  color: #adb6a4;
+  font-size: 12px;
+  line-height: 1.85;
+  margin: 0;
+}
+
+.potato-community-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 21px;
+}
+
+.potato-community-stats span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 11px;
+  border: 1px solid #404936;
+  border-radius: 8px;
+  background: #171b14a8;
+  color: #aab39f;
+  font-size: 9px;
+}
+
+.potato-community-stats strong {
+  font: 800 16px Outfit, sans-serif;
+  color: var(--lime);
+}
+
+.potato-community-mark {
+  display: grid;
+  justify-items: center;
+  gap: 13px;
+  text-align: center;
+  padding: 17px 9px;
+  font-size: 104px;
+  line-height: 1;
+  filter: drop-shadow(0 18px 16px #0005);
+}
+
+.potato-community-mark small {
+  font-size: 8px;
+  line-height: 1.5;
+  letter-spacing: 1.6px;
+  color: #c9d4bb;
+  filter: none;
+}
+
+.potato-section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 18px;
+  margin: 37px 0 17px;
+}
+
+.potato-section-heading h2 {
+  font: 700 clamp(24px, 3vw, 34px)/1.1 Outfit, sans-serif;
+  letter-spacing: -1px;
+  color: var(--white);
+  margin: 8px 0;
+}
+
+.potato-section-heading h2 span {
+  color: var(--lime);
+}
+
+.potato-section-heading p {
+  max-width: 650px;
+  font-size: 11px;
+  line-height: 1.75;
+  color: #929b8b;
+  margin: 0;
+}
+
+.potato-section-heading > .outline-button {
+  flex-shrink: 0;
+}
+
+.schedule-heading {
+  margin-top: 39px;
+}
+
+.neighborhood-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.neighborhood-chips span {
+  padding: 9px 12px;
+  border: 1px solid #343c2e;
+  border-radius: 7px;
+  background: #1a1e17;
+  color: #ccd3c5;
+  font-size: 10px;
+  transition: border-color .18s, background .18s;
+}
+
+.neighborhood-chips span:hover {
+  border-color: #64794a;
+  background: #222a1b;
+}
+
+/* Weekly schedule cards */
+
+.weekly-run-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.weekly-run-card {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 19px;
+  border: 1px solid #3c4435;
+  border-radius: 13px;
+  background: linear-gradient(145deg, #20251d, #171a15);
+  transition: transform .2s, border-color .2s, box-shadow .2s;
+}
+
+.weekly-run-card:hover {
+  transform: translateY(-2px);
+  border-color: #5a6e42;
+  box-shadow: 0 15px 32px #0002;
+}
+
+.weekly-run-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--lime);
+}
+
+.weekly-run-card.run-gold::before {
+  background: #e6bd5c;
+}
+
+.weekly-run-card.run-blue::before {
+  background: #78b8ff;
+}
+
+.weekly-run-card.run-violet::before {
+  background: #c8a0ff;
+}
+
+.weekly-run-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.weekly-run-day {
+  color: var(--lime);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.run-gold .weekly-run-day {
+  color: #e6bd5c;
+}
+
+.run-blue .weekly-run-day {
+  color: #78b8ff;
+}
+
+.run-violet .weekly-run-day {
+  color: #c8a0ff;
+}
+
+.weekly-run-format {
+  padding: 6px 8px;
+  border: 1px solid #45513b;
+  border-radius: 6px;
+  color: #dbe4d0;
+  background: #20271b;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.weekly-run-date {
+  font: 800 28px Outfit, sans-serif;
+  letter-spacing: -.8px;
+  color: #f4f6ee;
+  margin-top: 18px;
+}
+
+.weekly-run-card h3 {
+  font: 700 21px Outfit, sans-serif;
+  letter-spacing: -.4px;
+  color: #f2f5ec;
+  margin: 7px 0 3px;
+  overflow-wrap: anywhere;
+}
+
+.weekly-run-subtitle {
+  font-size: 10px;
+  line-height: 1.6;
+  color: #98a28d;
+  margin: 0 0 17px;
+}
+
+.weekly-run-detail {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  color: #c5cdbb;
+  font-size: 10px;
+  line-height: 1.65;
+  margin-top: 8px;
+}
+
+.weekly-run-detail > span {
+  width: 15px;
+  flex-shrink: 0;
+  color: var(--lime);
+  text-align: center;
+}
+
+.weekly-run-cta {
+  width: 100%;
+  margin-top: 19px;
+}
+
+.weekly-run-reference {
+  align-self: center;
+  margin-top: 12px;
+  color: #9eaa92;
+  text-align: center;
+  text-decoration: none;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.weekly-run-reference:hover {
+  color: var(--lime);
+  text-decoration: underline;
+}
+
+.potato-community-notes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 11px;
+  margin-top: 23px;
+}
+
+.potato-community-notes > div {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 17px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: #171a15;
+}
+
+.potato-community-notes > div > span {
+  color: var(--lime);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 1.2px;
+}
+
+.potato-community-notes strong {
+  color: #f0f3e9;
+  font: 700 13px Outfit, sans-serif;
+}
+
+.potato-community-notes p {
+  margin: 0;
+  color: #98a18e;
+  font-size: 10px;
+  line-height: 1.7;
+}
+
+/* ========================================
+   MATCH SHARING / CANCELLATION
+======================================== */
 
 .game-card-extra-actions {
   display: flex;
@@ -1024,8 +1995,49 @@ img {
   border-color: #a65b4e;
 }
 
+.team-unassigned {
+  display: grid;
+  gap: 5px;
+  margin-top: 10px;
+  padding: 11px;
+  border: 1px dashed #6a633e;
+  border-radius: 8px;
+  background: #252317;
+  color: #f1e4b5;
+}
+
+.team-unassigned strong {
+  font-size: 9px;
+}
+
+.team-unassigned span {
+  font-size: 9px;
+  overflow-wrap: anywhere;
+}
+
+.team-unassigned small {
+  color: #b8ad87;
+  font-size: 8px;
+  line-height: 1.5;
+}
+
+.payment-approval-section {
+  padding-top: 22px;
+}
+
+.payment-approval-section .profile-panel {
+  width: 100%;
+  max-width: none;
+}
+
+.payment-player-id {
+  color: #899183;
+  font-size: 9px;
+  overflow-wrap: anywhere;
+}
+
 /* ========================================
-   BLACK / WHITE AUTOMATIC TEAM BOARD
+   BLACK / WHITE TEAM BALANCING
 ======================================== */
 
 .balanced-team-board {
@@ -1233,949 +2245,75 @@ img {
 }
 
 /* ========================================
-   EMPTY STATES / SEARCH / NOTICES
+   ACCOUNT / LOGOUT PANEL
 ======================================== */
 
-.empty-panel {
-  grid-column: 1 / -1;
-  text-align: center;
-  padding: 50px 20px;
-  background: var(--panel);
-  border: 1px dashed #3a4233;
-  border-radius: 13px;
-  color: #a1a997;
-  font-size: 12px;
-  line-height: 1.8;
-}
-
-.empty-panel > span {
-  font-size: 34px;
-  color: var(--lime);
-}
-
-.empty-panel h3 {
-  font: 700 20px Outfit, sans-serif;
-  color: var(--white);
-  margin: 10px 0 5px;
-}
-
-.empty-panel p {
-  margin: 0 0 18px;
-}
-
-.toolbar {
-  display: flex;
-  gap: 10px;
-  margin: 24px 0 20px;
-}
-
-.search-control {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: 1;
-  min-width: 0;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  background: var(--panel);
-  padding: 0 14px;
-}
-
-.search-control > span {
-  font-size: 21px;
-  color: var(--lime);
-}
-
-.search-control input {
-  width: 100%;
-  min-width: 0;
-  padding: 13px 0;
-  border: 0;
-  outline: none;
-  background: transparent;
-  color: var(--white);
-  font-size: 11px;
-}
-
-.search-control input::placeholder {
-  color: #747d6e;
-}
-
-.toolbar select {
-  min-width: 150px;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  background: var(--panel);
-  color: #d9dfd2;
-  padding: 0 12px;
-  font-size: 10px;
-}
-
-.refresh-button {
-  display: block;
-  margin: 23px auto 0;
-  padding: 10px 14px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--panel);
-  color: #a9b19f;
-  font-size: 10px;
-}
-
-.feedback {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  margin-bottom: 17px;
-  border-radius: 8px;
-  font-size: 11px;
-  line-height: 1.6;
-}
-
-.feedback button {
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font-size: 19px;
-}
-
-.success {
-  background: #202d18;
-  border: 1px solid #42582b;
-  color: #d8f8a4;
-}
-
-.failure {
-  background: #321f1d;
-  border: 1px solid #65332e;
-  color: #ffb0a6;
-}
-
-.global-feedback {
-  margin-bottom: 25px;
-}
-
-/* ========================================
-   POTATO FC COMMUNITY PAGE
-======================================== */
-
-.potato-community-page {
-  padding-top: 12px;
-}
-
-.potato-community-hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 210px;
-  align-items: center;
-  gap: 26px;
-  min-height: 260px;
-  padding: clamp(25px, 4vw, 48px);
-  overflow: hidden;
-  border: 1px solid #3a452f;
-  border-radius: 17px;
-  background:
-    radial-gradient(circle at 83% 48%, #3a5025 0, transparent 26%),
-    radial-gradient(ellipse at 50% 100%, #26331e 0, transparent 58%),
-    linear-gradient(120deg, #20271b, #151813);
-}
-
-.potato-community-hero-copy {
-  min-width: 0;
-}
-
-.potato-community-hero-copy h1 {
-  font: 800 clamp(35px, 4.6vw, 57px)/1.02 Outfit, sans-serif;
-  letter-spacing: -2px;
-  margin: 16px 0 13px;
-}
-
-.potato-community-hero-copy h1 span {
-  color: var(--lime);
-}
-
-.potato-community-hero-copy > p {
-  max-width: 650px;
-  color: #adb6a4;
-  font-size: 12px;
-  line-height: 1.85;
-  margin: 0;
-}
-
-.potato-community-stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 9px;
-  margin-top: 21px;
-}
-
-.potato-community-stats span {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 9px 11px;
-  border: 1px solid #404936;
-  border-radius: 8px;
-  background: #171b14a8;
-  color: #aab39f;
-  font-size: 9px;
-}
-
-.potato-community-stats strong {
-  font: 800 16px Outfit, sans-serif;
-  color: var(--lime);
-}
-
-.potato-community-mark {
-  display: grid;
-  justify-items: center;
-  gap: 13px;
-  text-align: center;
-  padding: 17px 9px;
-  font-size: 104px;
-  line-height: 1;
-  filter: drop-shadow(0 18px 16px #0005);
-}
-
-.potato-community-mark small {
-  font-size: 8px;
-  line-height: 1.5;
-  letter-spacing: 1.6px;
-  color: #c9d4bb;
-  filter: none;
-}
-
-.potato-section-heading {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 18px;
-  margin: 37px 0 17px;
-}
-
-.potato-section-heading h2 {
-  font: 700 clamp(24px, 3vw, 34px)/1.1 Outfit, sans-serif;
-  letter-spacing: -1px;
-  color: var(--white);
-  margin: 8px 0;
-}
-
-.potato-section-heading h2 span {
-  color: var(--lime);
-}
-
-.potato-section-heading p {
-  max-width: 650px;
-  font-size: 11px;
-  line-height: 1.75;
-  color: #929b8b;
-  margin: 0;
-}
-
-.potato-section-heading > .outline-button {
-  flex-shrink: 0;
-}
-
-.neighborhood-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.neighborhood-chips span {
-  padding: 9px 12px;
-  border: 1px solid #343c2e;
-  border-radius: 7px;
-  background: #1a1e17;
-  color: #ccd3c5;
-  font-size: 10px;
-  transition: border-color .18s, background .18s;
-}
-
-.neighborhood-chips span:hover {
-  border-color: #64794a;
-  background: #222a1b;
-}
-
-.schedule-heading {
-  margin-top: 39px;
-}
-
-/* Potato FC weekly runs */
-
-.weekly-run-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.weekly-run-card {
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  padding: 19px;
-  border: 1px solid #3c4435;
-  border-radius: 13px;
-  background: linear-gradient(145deg, #20251d, #171a15);
-  transition: transform .2s, border-color .2s, box-shadow .2s;
-}
-
-.weekly-run-card:hover {
-  transform: translateY(-2px);
-  border-color: #5a6e42;
-  box-shadow: 0 15px 32px #0002;
-}
-
-.weekly-run-card:before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: var(--lime);
-}
-
-.weekly-run-card.run-gold:before { background: #e6bd5c; }
-.weekly-run-card.run-blue:before { background: #78b8ff; }
-.weekly-run-card.run-violet:before { background: #c8a0ff; }
-
-.weekly-run-top {
+.profile-account-panel {
+  max-width: 760px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-}
-
-.weekly-run-day {
-  color: var(--lime);
-  font-size: 9px;
-  font-weight: 900;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-}
-
-.run-gold .weekly-run-day { color: #e6bd5c; }
-.run-blue .weekly-run-day { color: #78b8ff; }
-.run-violet .weekly-run-day { color: #c8a0ff; }
-
-.weekly-run-format {
-  padding: 6px 8px;
-  border: 1px solid #45513b;
-  border-radius: 6px;
-  color: #dbe4d0;
-  background: #20271b;
-  font-size: 9px;
-  font-weight: 900;
-}
-
-.weekly-run-date {
-  font: 800 28px Outfit, sans-serif;
-  letter-spacing: -.8px;
-  color: #f4f6ee;
+  gap: 20px;
   margin-top: 18px;
+  padding: 19px 21px;
+  border: 1px solid #493833;
+  border-radius: 12px;
+  background: linear-gradient(110deg, #211c19, #191a16);
 }
 
-.weekly-run-card h3 {
-  font: 700 21px Outfit, sans-serif;
-  letter-spacing: -.4px;
-  color: #f2f5ec;
-  margin: 7px 0 3px;
+.profile-account-copy {
+  min-width: 0;
+}
+
+.profile-account-copy h2 {
+  margin: 7px 0 5px;
+  color: #f2eee9;
+  font: 700 17px Outfit, sans-serif;
+}
+
+.profile-account-copy p {
+  margin: 0;
+  color: #c5b9b2;
+  font-size: 10px;
   overflow-wrap: anywhere;
 }
 
-.weekly-run-subtitle {
-  font-size: 10px;
-  line-height: 1.6;
-  color: #98a28d;
-  margin: 0 0 17px;
-}
-
-.weekly-run-detail {
-  display: flex;
-  align-items: flex-start;
-  gap: 9px;
-  color: #c5cdbb;
-  font-size: 10px;
-  line-height: 1.65;
-  margin-top: 8px;
-}
-
-.weekly-run-detail > span {
-  width: 15px;
-  flex-shrink: 0;
-  color: var(--lime);
-  text-align: center;
-}
-
-.weekly-run-cta {
-  width: 100%;
-  margin-top: 19px;
-}
-
-.weekly-run-reference {
-  align-self: center;
-  margin-top: 12px;
-  color: #9eaa92;
-  text-align: center;
-  text-decoration: none;
+.profile-account-copy small {
+  display: block;
+  margin-top: 6px;
+  color: #91847d;
   font-size: 9px;
   line-height: 1.5;
 }
 
-.weekly-run-reference:hover {
-  color: var(--lime);
-  text-decoration: underline;
-}
-
-.potato-community-notes {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 11px;
-  margin-top: 23px;
-}
-
-.potato-community-notes > div {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 7px;
-  padding: 17px;
-  border: 1px solid var(--line);
-  border-radius: 11px;
-  background: #171a15;
-}
-
-.potato-community-notes > div > span {
-  color: var(--lime);
-  font-size: 9px;
-  font-weight: 900;
-  letter-spacing: 1.2px;
-}
-
-.potato-community-notes strong {
-  color: #f0f3e9;
-  font: 700 13px Outfit, sans-serif;
-}
-
-.potato-community-notes p {
-  margin: 0;
-  color: #98a18e;
-  font-size: 10px;
-  line-height: 1.7;
-}
-
-/* ========================================
-   TURF LISTINGS
-======================================== */
-
-.turf-search {
-  max-width: 550px;
-  margin: 25px 0;
-}
-
-.turf-art {
-  height: 155px;
-  display: grid;
-  place-content: center;
-  justify-items: center;
-  gap: 8px;
-  background: radial-gradient(circle at center, #3e5929, #202c1c);
-}
-
-.turf-art span {
-  font-size: 48px;
-}
-
-.turf-art small {
-  color: #c2d4af;
-  font-size: 8px;
-  letter-spacing: 1.5px;
-}
-
-.turf-info {
-  padding: 17px;
-}
-
-.turf-info h3 {
-  margin-top: 9px;
-}
-
-.turf-info p {
-  font-size: 10px;
-  color: #9aa392;
-  line-height: 1.7;
-}
-
-.turf-status {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding-top: 12px;
-  border-top: 1px solid var(--line);
-  color: #b5c0aa;
-  font-size: 9px;
-}
-
-.turf-status > span:last-child {
-  margin-left: auto;
-  color: #9b9f92;
-  text-align: right;
-}
-
-/* ========================================
-   PLAYER PROFILE
-======================================== */
-
-.profile-panel {
-  max-width: 680px;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 15px;
-  background: var(--panel);
-}
-
-.player-profile-panel {
-  max-width: 760px;
-}
-
-.profile-cover {
-  height: 160px;
-  position: relative;
-  display: flex;
-  align-items: flex-start;
-  justify-content: flex-end;
-  padding: 20px;
-  background:
-    radial-gradient(circle at 15% 15%, #364927, transparent 40%),
-    linear-gradient(120deg, #262e20, #171a15);
-}
-
-.profile-cover > span {
-  color: #c8d7b9;
-  font-size: 9px;
-  font-weight: 900;
-  letter-spacing: 2px;
-}
-
-.profile-big-avatar {
-  position: absolute;
-  bottom: -30px;
-  left: 25px;
-  width: 76px;
-  height: 76px;
-  border: 5px solid var(--panel);
-  font-size: 25px;
-}
-
-.profile-cover-tag {
-  align-self: flex-end;
-  margin: 0 0 0 auto;
-  padding: 8px 11px;
-  border: 1px solid #c7ff4540;
-  border-radius: 6px;
-  background: #11160edb;
-  color: var(--lime);
-  font-size: 9px;
-  font-weight: 900;
-  letter-spacing: 1.2px;
-}
-
-.profile-details {
-  padding: 48px 25px 25px;
-  display: grid;
-  gap: 22px;
-}
-
-.profile-details h2 {
-  font: 700 24px Outfit, sans-serif;
-  margin: 7px 0;
-}
-
-.profile-details p {
-  font-size: 12px;
-  color: #c1c8b9;
-}
-
-.profile-metrics {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-}
-
-.profile-metrics > div {
-  padding: 15px;
-  border-right: 1px solid var(--line);
-}
-
-.profile-metrics > div:last-child {
-  border-right: 0;
-}
-
-.profile-metrics strong,
-.profile-metrics span {
-  display: block;
-}
-
-.profile-metrics strong {
-  font: 700 22px Outfit, sans-serif;
-  color: var(--lime);
-}
-
-.profile-metrics span {
-  font-size: 9px;
-  color: #9ca594;
-  margin-top: 5px;
-}
-
-.profile-status-pill {
+.profile-logout-button {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 9px 11px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  color: #aeb7a3;
-  font-size: 9px;
-  font-weight: 900;
-  letter-spacing: 1.1px;
-  white-space: nowrap;
-  background: #171a15;
-}
-
-.profile-status-pill > span {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #a7ae9d;
-}
-
-.profile-status-pill.is-complete {
-  color: var(--lime);
-  border-color: #3a4b2d;
-  background: #1d2517;
-}
-
-.profile-status-pill.is-complete > span {
-  background: var(--lime);
-  box-shadow: 0 0 12px #c7ff4566;
-}
-
-.profile-status-pill.is-incomplete {
-  color: #ffd18b;
-  border-color: #5b4525;
-  background: #282014;
-}
-
-.profile-status-pill.is-incomplete > span {
-  background: #ffc56c;
-}
-
-.profile-edit-form {
-  display: grid;
-  gap: 16px;
-  padding: 48px 25px 25px;
-}
-
-.profile-form-intro {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 18px;
-  padding-bottom: 8px;
-}
-
-.profile-form-intro h2 {
-  font: 700 25px/1.15 Outfit, sans-serif;
-  letter-spacing: -.6px;
-  color: var(--white);
-  margin: 8px 0;
-}
-
-.profile-form-intro p {
-  font-size: 11px;
-  line-height: 1.7;
-  color: #9ca594;
-  margin: 0;
-  max-width: 500px;
-}
-
-.profile-form-icon {
-  width: 42px;
-  height: 42px;
-  display: grid;
-  place-items: center;
+  justify-content: center;
+  gap: 9px;
   flex-shrink: 0;
-  border: 1px solid #465638;
-  border-radius: 12px;
-  background: #26331e;
-  font-size: 21px;
-}
-
-.profile-edit-form label {
-  display: block;
-  color: #cbd2c3;
-  font-size: 10px;
-  font-weight: 700;
-}
-
-.profile-edit-form label > small {
-  color: #818a78;
-  font-weight: 500;
-}
-
-.profile-edit-form input,
-.profile-edit-form select,
-.profile-edit-form textarea {
-  display: block;
-  width: 100%;
-  margin-top: 7px;
-  padding: 12px;
-  border: 1px solid #3a4234;
+  border: 1px solid #815047;
   border-radius: 8px;
-  background: #11140f;
-  color: #f5f7f3;
-  font: 500 11px "DM Sans", sans-serif;
-  min-height: 41px;
-}
-
-.profile-edit-form textarea {
-  resize: vertical;
-  line-height: 1.6;
-  min-height: 84px;
-}
-
-.profile-edit-form input:disabled {
-  opacity: .65;
-  color: #9ca594;
-  cursor: not-allowed;
-}
-
-.profile-edit-form input::placeholder,
-.profile-edit-form textarea::placeholder {
-  color: #747d6e;
-}
-
-.required-mark {
-  color: var(--lime);
-}
-
-.profile-preview-strip {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 13px;
-  border: 1px solid #343d2d;
-  border-radius: 10px;
-  background: linear-gradient(100deg, #222b1b, #1b1e18);
-}
-
-.profile-preview-avatar {
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  flex-shrink: 0;
-  border: 1px solid #536b3b;
-  border-radius: 50%;
-  background: #354825;
-  color: var(--lime);
-  font: 800 12px Outfit, sans-serif;
-}
-
-.profile-preview-copy {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
-.profile-preview-copy strong {
-  color: #f3f6ee;
-  font: 700 13px Outfit, sans-serif;
-  overflow-wrap: anywhere;
-}
-
-.profile-preview-copy span {
-  color: #9ba692;
-  font-size: 10px;
-}
-
-.profile-preview-check {
-  margin-left: auto;
-  color: var(--lime);
-  font-size: 8px;
-  font-weight: 900;
-  letter-spacing: 1px;
-  white-space: nowrap;
-}
-
-.profile-benefit-row {
-  max-width: 760px;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 13px;
-}
-
-.profile-benefit-row > div {
-  display: grid;
-  gap: 6px;
-  padding: 15px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: #171a15;
-}
-
-.profile-benefit-row > div > span {
-  color: var(--lime);
-  font-size: 9px;
-  font-weight: 900;
-  letter-spacing: 1px;
-}
-
-.profile-benefit-row strong {
-  font: 700 12px Outfit, sans-serif;
-  color: #eef2e8;
-}
-
-.profile-benefit-row small {
-  color: #8f9887;
-  font-size: 9px;
-  line-height: 1.5;
-}
-
-.profile-setup-banner {
-  display: flex;
-  align-items: center;
-  gap: 13px;
-  margin: 0 0 22px;
-  padding: 14px;
-  border: 1px solid #485735;
-  border-radius: 10px;
-  background: linear-gradient(100deg, #222b1b, #191c17);
-}
-
-.profile-setup-banner-icon {
-  width: 34px;
-  height: 34px;
-  flex-shrink: 0;
-  display: grid;
-  place-items: center;
-  border-radius: 9px;
-  background: #344624;
-  color: var(--lime);
-  font-size: 18px;
-}
-
-.profile-setup-banner > div {
-  min-width: 0;
-}
-
-.profile-setup-banner strong {
-  display: block;
-  color: #f2f6eb;
-  font: 700 12px Outfit, sans-serif;
-}
-
-.profile-setup-banner p {
-  margin: 4px 0 0;
-  color: #a3ad98;
-  font-size: 10px;
-  line-height: 1.5;
-}
-
-.profile-setup-banner button {
-  margin-left: auto;
-  flex-shrink: 0;
-  border: 1px solid #536a3b;
-  border-radius: 7px;
-  padding: 10px 12px;
-  background: var(--lime);
-  color: #151a10;
+  padding: 12px 15px;
+  background: #38221e;
+  color: #ffc1b6;
   font-size: 10px;
   font-weight: 900;
+  transition: background .2s, border-color .2s;
 }
 
-.squad-preview {
-  margin-top: 15px;
-  padding-top: 13px;
-  border-top: 1px solid var(--line);
+.profile-logout-button:hover:not(:disabled) {
+  background: #4a2924;
+  border-color: #b86b5c;
 }
 
-.squad-preview-heading {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 10px;
-  color: #8f9985;
-  font-size: 8px;
-  font-weight: 900;
-  letter-spacing: 1px;
-}
-
-.squad-preview-heading span:last-child {
-  letter-spacing: 0;
-  font-weight: 600;
-  color: #a7b09c;
-}
-
-.squad-player-list {
-  display: grid;
-  gap: 8px;
-}
-
-.squad-player {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.squad-player-avatar {
-  width: 26px;
-  height: 26px;
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  border: 1px solid #405133;
-  border-radius: 50%;
-  background: #283421;
-  color: var(--lime);
-  font-size: 8px;
-  font-weight: 900;
-}
-
-.squad-player-copy {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-}
-
-.squad-player-copy strong {
-  font-size: 9px;
-  line-height: 1.3;
-  color: #e5eadd;
-  overflow-wrap: anywhere;
-}
-
-.squad-player-copy small {
-  font-size: 8px;
-  color: #8f9985;
-}
-
-.squad-more {
-  padding-left: 34px;
-  color: var(--lime);
-  font-size: 8px;
-  font-weight: 800;
+.profile-logout-button:disabled {
+  opacity: .55;
+  cursor: wait;
 }
 
 /* ========================================
-   GAME / PAYMENT FORMS AND MODALS
+   GAME FORM / MODALS
 ======================================== */
 
 .modal-backdrop {
@@ -2262,10 +2400,6 @@ img {
   color: #747d6e;
 }
 
-.game-form textarea {
-  resize: vertical;
-}
-
 .form-two-columns {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2287,7 +2421,7 @@ img {
 }
 
 /* ========================================
-   FOOTER / MOBILE NAV
+   FOOTER
 ======================================== */
 
 .main-footer {
@@ -2318,13 +2452,17 @@ img {
   font-size: 17px;
 }
 
-.mobile-nav {
-  display: none;
+.footer-brand .brand-word > span {
+  color: var(--lime);
 }
 
 /* ========================================
    RESPONSIVE TABLET
 ======================================== */
+
+.mobile-nav {
+  display: none;
+}
 
 @media (min-width: 1500px) {
   .main-content {
@@ -2392,10 +2530,6 @@ img {
 
   .potato-community-mark small {
     font-size: 7px;
-  }
-
-  .weekly-run-card {
-    padding: 16px;
   }
 }
 
@@ -2479,7 +2613,7 @@ img {
 }
 
 /* ========================================
-   RESPONSIVE MOBILE
+   RESPONSIVE TABLET / MOBILE PROFILE
 ======================================== */
 
 @media (max-width: 760px) {
@@ -2616,7 +2750,20 @@ img {
   .game-card-extra-actions .cancel-game-button {
     margin-left: auto;
   }
+
+  .profile-account-panel {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .profile-logout-button {
+    width: 100%;
+  }
 }
+
+/* ========================================
+   RESPONSIVE MOBILE
+======================================== */
 
 @media (max-width: 600px) {
   .sidebar {
@@ -2799,6 +2946,7 @@ img {
     width: 100%;
   }
 
+  /* Six tabs: Home, Potato FC, Games, My Games, Turfs, Profile */
   .mobile-nav {
     position: fixed;
     display: grid;
@@ -2824,11 +2972,11 @@ img {
   }
 
   .mobile-nav button > span {
-    font-size: 17px;
+    font-size: 16px;
   }
 
   .mobile-nav button small {
-    font-size: 8px;
+    font-size: 7px;
     white-space: nowrap;
   }
 
@@ -2861,7 +3009,24 @@ img {
   .profile-cover {
     height: 135px;
   }
+
+  .potato-community-hero-copy h1 {
+    font-size: 38px;
+  }
+
+  .potato-community-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .potato-community-stats span:last-child {
+    grid-column: 1 / -1;
+  }
 }
+
+/* ========================================
+   EXTRA SMALL SCREENS
+======================================== */
 
 @media (max-width: 460px) {
   .profile-edit-form .form-two-columns {
@@ -2887,6 +3052,10 @@ img {
     height: 35px;
   }
 
+  .balanced-teams {
+    grid-template-columns: 1fr;
+  }
+
   .balanced-team-title strong {
     font-size: 9px;
   }
@@ -2905,6 +3074,10 @@ img {
     grid-row: 1 / 3;
   }
 
+  .profile-account-panel {
+    padding: 16px;
+  }
+
   .potato-home-copy h2 {
     font-size: 30px;
   }
@@ -2920,15 +3093,6 @@ img {
   .potato-community-hero-copy h1 {
     font-size: 36px;
     letter-spacing: -1.5px;
-  }
-
-  .potato-community-stats {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .potato-community-stats span:last-child {
-    grid-column: 1 / -1;
   }
 
   .neighborhood-chips {

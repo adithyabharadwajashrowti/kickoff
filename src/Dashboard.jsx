@@ -13,8 +13,15 @@ const NAV_ITEMS = [
 ];
 
 const POTATO_NEIGHBORHOODS = [
-  "Koramangala", "HSR Layout", "BTM Layout", "JP Nagar", "Jayanagar",
-  "Banashankari", "Electronic City", "Sarjapur Road", "Kumaraswamy Layout",
+  "Koramangala",
+  "HSR Layout",
+  "BTM Layout",
+  "JP Nagar",
+  "Jayanagar",
+  "Banashankari",
+  "Electronic City",
+  "Sarjapur Road",
+  "Kumaraswamy Layout",
   "Nearby South Bengaluru",
 ];
 
@@ -25,66 +32,121 @@ function localDateISO(date) {
   return `${year}-${month}-${day}`;
 }
 
-// Weekly templates always point to the next calendar week (Mon–Sun),
-// not to an accidental same-week occurrence when the app is opened late in the week.
+// Weekly templates always point to the next calendar week (Mon–Sun).
 function nextWeekdayISO(offsetFromMonday) {
   const now = new Date();
   const daysUntilNextMonday = ((8 - now.getDay()) % 7) || 7;
-  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const monday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate()
+  );
+
   monday.setDate(monday.getDate() + daysUntilNextMonday);
   monday.setDate(monday.getDate() + offsetFromMonday);
+
   return localDateISO(monday);
 }
 
 const WEEKLY_RUNS = [
   {
-    id: "wed-verve-5v5", day: "Wednesday", date: nextWeekdayISO(2),
-    title: "Potato FC · Wednesday 5v5", venueName: "Verve Play",
-    format: "5-a-side", formatLabel: "5v5", maxPlayers: 10,
-    playoUrl: "https://go.playo.app/PLAYOO/G1jN7", accent: "lime",
+    id: "wed-verve-5v5",
+    day: "Wednesday",
+    date: nextWeekdayISO(2),
+    title: "Potato FC · Wednesday 5v5",
+    venueName: "Verve Play",
+    format: "5-a-side",
+    formatLabel: "5v5",
+    maxPlayers: 10,
+    playoUrl: "https://go.playo.app/PLAYOO/G1jN7",
+    accent: "lime",
   },
   {
-    id: "thu-play-matrix-9v9", day: "Thursday", date: nextWeekdayISO(3),
-    title: "Potato FC · Thursday 9v9", venueName: "Play Matrix",
-    format: "9-a-side", formatLabel: "9v9", maxPlayers: 18,
-    playoUrl: "https://go.playo.app/PLAYOO/WytL8", accent: "gold",
+    id: "thu-play-matrix-9v9",
+    day: "Thursday",
+    date: nextWeekdayISO(3),
+    title: "Potato FC · Thursday 9v9",
+    venueName: "Play Matrix",
+    format: "9-a-side",
+    formatLabel: "9v9",
+    maxPlayers: 18,
+    playoUrl: "https://go.playo.app/PLAYOO/WytL8",
+    accent: "gold",
   },
   {
-    id: "fri-verve-5v5", day: "Friday", date: nextWeekdayISO(4),
-    title: "Potato FC · Friday 5v5", venueName: "Verve Play",
-    format: "5-a-side", formatLabel: "5v5", maxPlayers: 10,
-    playoUrl: "https://go.playo.app/PLAYOO/9PmLf", accent: "blue",
+    id: "fri-verve-5v5",
+    day: "Friday",
+    date: nextWeekdayISO(4),
+    title: "Potato FC · Friday 5v5",
+    venueName: "Verve Play",
+    format: "5-a-side",
+    formatLabel: "5v5",
+    maxPlayers: 10,
+    playoUrl: "https://go.playo.app/PLAYOO/9PmLf",
+    accent: "blue",
   },
   {
-    id: "sun-verve-5v5", day: "Sunday", date: nextWeekdayISO(6),
-    title: "Potato FC · Sunday 5v5", venueName: "Verve Play",
-    format: "5-a-side", formatLabel: "5v5", maxPlayers: 10,
-    playoUrl: "https://go.playo.app/PLAYOO/EJWnc", accent: "violet",
+    id: "sun-verve-5v5",
+    day: "Sunday",
+    date: nextWeekdayISO(6),
+    title: "Potato FC · Sunday 5v5",
+    venueName: "Verve Play",
+    format: "5-a-side",
+    formatLabel: "5v5",
+    maxPlayers: 10,
+    playoUrl: "https://go.playo.app/PLAYOO/EJWnc",
+    accent: "violet",
   },
+];
+
+const SKILL_LEVELS = [
+  "Beginner",
+  "Intermediate",
+  "Amateur",
+  "Professional",
+];
+
+const POSITIONS = [
+  "Goalkeeper",
+  "Defender",
+  "Midfielder",
+  "Forward",
+  "Flexible / Any",
 ];
 
 export default function Dashboard({ user, onLogout }) {
   const [page, setPage] = useState("home");
+
   const [games, setGames] = useState([]);
   const [venues, setVenues] = useState([]);
   const [participantCounts, setParticipantCounts] = useState({});
   const [myGameIds, setMyGameIds] = useState([]);
+  const [gameRoster, setGameRoster] = useState({});
+  const [paymentRequests, setPaymentRequests] = useState([]);
+
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All games");
+
   const [showForm, setShowForm] = useState(false);
+  const [gameDraftTemplate, setGameDraftTemplate] = useState(null);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [joiningGameId, setJoiningGameId] = useState(null);
-  const [paymentRequests, setPaymentRequests] = useState([]);
-  const [paymentGame, setPaymentGame] = useState(null);
-  const [freeJoinGame, setFreeJoinGame] = useState(null);
-  const [selectedMatchSkillLevel, setSelectedMatchSkillLevel] = useState("Beginner");
-  const [paymentSlots, setPaymentSlots] = useState(1);
-  const [upiReference, setUpiReference] = useState("");
   const [reviewingRequestId, setReviewingRequestId] = useState(null);
   const [cancellingGameId, setCancellingGameId] = useState(null);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const [paymentGame, setPaymentGame] = useState(null);
+  const [freeJoinGame, setFreeJoinGame] = useState(null);
+  const [selectedMatchSkillLevel, setSelectedMatchSkillLevel] =
+    useState("Beginner");
+  const [paymentSlots, setPaymentSlots] = useState(1);
+  const [upiReference, setUpiReference] = useState("");
+
   const [clock, setClock] = useState(Date.now());
-  const [gameDraftTemplate, setGameDraftTemplate] = useState(null);
+
   const [playerProfile, setPlayerProfile] = useState({
     full_name:
       user.user_metadata?.display_name ||
@@ -98,10 +160,10 @@ export default function Dashboard({ user, onLogout }) {
     jersey_number: "",
     bio: "",
   });
+
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
-  const [profileSaving, setProfileSaving] = useState(false);
-  const [gameRoster, setGameRoster] = useState({});
+
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
 
@@ -111,7 +173,10 @@ export default function Dashboard({ user, onLogout }) {
     user.email?.split("@")[0] ||
     "";
 
-  const displayName = playerProfile.full_name?.trim() || authFallbackName || "Player";
+  const displayName =
+    playerProfile.full_name?.trim() ||
+    authFallbackName ||
+    "Player";
 
   const profileComplete = Boolean(
     profileLoaded &&
@@ -128,6 +193,10 @@ export default function Dashboard({ user, onLogout }) {
     .map((part) => part[0].toUpperCase())
     .join("");
 
+  // ------------------------------------------------------------
+  // LOAD DASHBOARD DATA
+  // ------------------------------------------------------------
+
   const loadData = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -135,40 +204,49 @@ export default function Dashboard({ user, onLogout }) {
     try {
       const now = new Date().toISOString();
 
-      const [gamesResult, venuesResult, membershipsResult, requestsResult, profileResult] =
-        await Promise.all([
-          supabase
-            .from("games")
-            .select("*")
-            .eq("status", "open")
-            .is("cancelled_at", null)
-            .gte("ends_at", now)
-            .order("starts_at", { ascending: true }),
+      const [
+        gamesResult,
+        venuesResult,
+        membershipsResult,
+        requestsResult,
+        profileResult,
+      ] = await Promise.all([
+        supabase
+          .from("games")
+          .select("*")
+          .eq("status", "open")
+          .is("cancelled_at", null)
+          .gte("ends_at", now)
+          .order("starts_at", { ascending: true }),
 
-          supabase
-            .from("venues")
-            .select("id, name, city, address")
-            .eq("status", "active")
-            .order("name"),
+        supabase
+          .from("venues")
+          .select("id, name, city, address")
+          .eq("status", "active")
+          .order("name"),
 
-          supabase
-            .from("game_participants")
-            .select("game_id, status")
-            .eq("player_id", user.id)
-            .eq("status", "joined"),
+        supabase
+          .from("game_participants")
+          .select("game_id, status")
+          .eq("player_id", user.id)
+          .eq("status", "joined"),
 
-          supabase
-            .from("game_payment_requests")
-            .select("id, game_id, player_id, amount_paise, slots_count, match_skill_level, upi_reference, status, created_at, review_note")
-            .order("created_at", { ascending: false })
-            .limit(200),
+        supabase
+          .from("game_payment_requests")
+          .select(
+            "id, game_id, player_id, amount_paise, slots_count, match_skill_level, upi_reference, status, created_at, review_note"
+          )
+          .order("created_at", { ascending: false })
+          .limit(200),
 
-          supabase
-            .from("profiles")
-            .select("id, full_name, skill_level, primary_position, secondary_position, preferred_foot, jersey_number, bio")
-            .eq("id", user.id)
-            .maybeSingle(),
-        ]);
+        supabase
+          .from("profiles")
+          .select(
+            "id, full_name, skill_level, primary_position, secondary_position, preferred_foot, jersey_number, bio"
+          )
+          .eq("id", user.id)
+          .maybeSingle(),
+      ]);
 
       if (gamesResult.error) throw gamesResult.error;
       if (venuesResult.error) throw venuesResult.error;
@@ -176,6 +254,7 @@ export default function Dashboard({ user, onLogout }) {
       if (requestsResult.error) throw requestsResult.error;
       if (profileResult.error) throw profileResult.error;
 
+      // Player profile
       const loadedProfile = profileResult.data;
 
       if (loadedProfile) {
@@ -188,6 +267,7 @@ export default function Dashboard({ user, onLogout }) {
           jersey_number: loadedProfile.jersey_number ?? "",
           bio: loadedProfile.bio || "",
         });
+
         setProfileSaved(true);
       } else {
         setPlayerProfile({
@@ -199,6 +279,7 @@ export default function Dashboard({ user, onLogout }) {
           jersey_number: "",
           bio: "",
         });
+
         setProfileSaved(false);
       }
 
@@ -208,21 +289,66 @@ export default function Dashboard({ user, onLogout }) {
 
       setGames(loadedGames);
       setVenues(venuesResult.data || []);
+
       setMyGameIds(
         (membershipsResult.data || []).map((item) => item.game_id)
       );
-      setPaymentRequests(requestsResult.data || []);
 
-      if (loadedGames.length) {
-        const { data: participants, error: participantError } =
-          await supabase
-            .from("game_participants")
-            .select("game_id, player_id, status, slots_count, match_skill_level, team_color")
-            .in(
-              "game_id",
-              loadedGames.map((game) => game.id)
-            )
-            .eq("status", "joined");
+      // Load names for players who have submitted payment requests.
+      const rawPaymentRequests = requestsResult.data || [];
+
+      const requestPlayerIds = [
+        ...new Set(
+          rawPaymentRequests
+            .map((request) => request.player_id)
+            .filter(Boolean)
+        ),
+      ];
+
+      let requestProfilesById = {};
+
+      if (requestPlayerIds.length > 0) {
+        const {
+          data: requestProfiles,
+          error: requestProfilesError,
+        } = await supabase
+          .from("profiles")
+          .select("id, full_name")
+          .in("id", requestPlayerIds);
+
+        if (requestProfilesError) throw requestProfilesError;
+
+        requestProfilesById = Object.fromEntries(
+          (requestProfiles || []).map((profile) => [
+            profile.id,
+            profile,
+          ])
+        );
+      }
+
+      setPaymentRequests(
+        rawPaymentRequests.map((request) => ({
+          ...request,
+          player_name:
+            requestProfilesById[request.player_id]?.full_name || null,
+        }))
+      );
+
+      // Load confirmed participants and their stored team assignments.
+      if (loadedGames.length > 0) {
+        const {
+          data: participants,
+          error: participantError,
+        } = await supabase
+          .from("game_participants")
+          .select(
+            "game_id, player_id, status, slots_count, match_skill_level, team_color"
+          )
+          .in(
+            "game_id",
+            loadedGames.map((game) => game.id)
+          )
+          .eq("status", "joined");
 
         if (participantError) throw participantError;
 
@@ -239,20 +365,28 @@ export default function Dashboard({ user, onLogout }) {
 
         const profileIds = [
           ...new Set(
-            participantRows.map((row) => row.player_id).filter(Boolean)
+            participantRows
+              .map((row) => row.player_id)
+              .filter(Boolean)
           ),
         ];
 
-        if (profileIds.length) {
-          const { data: profileRows, error: rosterError } = await supabase
-            .from("profiles")
-            .select("id, full_name, skill_level, primary_position, secondary_position")
-            .in("id", profileIds);
+        if (profileIds.length > 0) {
+          const { data: profileRows, error: rosterError } =
+            await supabase
+              .from("profiles")
+              .select(
+                "id, full_name, skill_level, primary_position, secondary_position"
+              )
+              .in("id", profileIds);
 
           if (rosterError) throw rosterError;
 
           const profilesById = Object.fromEntries(
-            (profileRows || []).map((profile) => [profile.id, profile])
+            (profileRows || []).map((profile) => [
+              profile.id,
+              profile,
+            ])
           );
 
           const roster = {};
@@ -275,8 +409,10 @@ export default function Dashboard({ user, onLogout }) {
                 participant.match_skill_level ||
                 profile?.skill_level ||
                 "Beginner",
-              primary_position: profile?.primary_position || "Position pending",
-              secondary_position: profile?.secondary_position || "",
+              primary_position:
+                profile?.primary_position || "Position pending",
+              secondary_position:
+                profile?.secondary_position || "",
               team_color: participant.team_color || null,
               slots_count: Number(participant.slots_count || 1),
             });
@@ -292,7 +428,9 @@ export default function Dashboard({ user, onLogout }) {
       }
     } catch (err) {
       console.error("KICKOFF data loading error:", err);
-      setError(err.message || "We couldn't load the latest information.");
+      setError(
+        err.message || "We couldn't load the latest information."
+      );
     } finally {
       setLoading(false);
     }
@@ -302,7 +440,7 @@ export default function Dashboard({ user, onLogout }) {
     loadData();
   }, [loadData]);
 
-  // Expired matches are removed from the active UI even if the tab remains open.
+  // Remove expired or cancelled games from the visible dashboard.
   useEffect(() => {
     const expiryTimer = window.setInterval(() => {
       const nowMs = Date.now();
@@ -315,6 +453,7 @@ export default function Dashboard({ user, onLogout }) {
 
           const endMs = new Date(game.ends_at).getTime();
 
+          // Don't silently remove a game with a missing or invalid end date.
           return !Number.isFinite(endMs) || endMs > nowMs;
         })
       );
@@ -322,6 +461,10 @@ export default function Dashboard({ user, onLogout }) {
 
     return () => window.clearInterval(expiryTimer);
   }, []);
+
+  // ------------------------------------------------------------
+  // DERIVED DATA / HELPERS
+  // ------------------------------------------------------------
 
   const venueFor = (game) =>
     venues.find((venue) => venue.id === game.venue_id) ||
@@ -333,7 +476,8 @@ export default function Dashboard({ user, onLogout }) {
     () =>
       games.filter(
         (game) =>
-          myGameIds.includes(game.id) || game.organiser_id === user.id
+          myGameIds.includes(game.id) ||
+          game.organiser_id === user.id
       ),
     [games, myGameIds, user.id]
   );
@@ -389,12 +533,43 @@ export default function Dashboard({ user, onLogout }) {
     });
   }
 
+  // One logout handler is shared by sidebar, mobile header and profile.
+  async function handleLogout() {
+    if (typeof onLogout !== "function") {
+      setError(
+        "Logout is not configured. Please refresh and try again."
+      );
+      return;
+    }
+
+    setLoggingOut(true);
+    setError("");
+    setNotice("");
+
+    try {
+      await onLogout();
+    } catch (err) {
+      console.error("KICKOFF logout error:", err);
+      setError(
+        err?.message || "Unable to log out. Please try again."
+      );
+    } finally {
+      setLoggingOut(false);
+    }
+  }
+
+  // ------------------------------------------------------------
+  // CREATE GAME
+  // ------------------------------------------------------------
+
   async function createGame(event) {
     event.preventDefault();
 
     if (!profileComplete) {
       setPage("profile");
-      setNotice("Complete your player card first, then publish your match.");
+      setNotice(
+        "Complete your player card first, then publish your match."
+      );
       setError("");
       return;
     }
@@ -434,12 +609,16 @@ export default function Dashboard({ user, onLogout }) {
         maxPlayers < 2 ||
         maxPlayers > 50
       ) {
-        throw new Error("Player capacity must be between 2 and 50.");
+        throw new Error(
+          "Player capacity must be between 2 and 50."
+        );
       }
 
       const title = String(form.get("title") || "").trim();
       const venueName = String(form.get("venue_name") || "").trim();
-      const hostUpiId = String(form.get("host_upi_id") || "").trim();
+      const hostUpiId = String(
+        form.get("host_upi_id") || ""
+      ).trim();
 
       if (!title) {
         throw new Error("Enter a name for your game.");
@@ -450,11 +629,15 @@ export default function Dashboard({ user, onLogout }) {
       }
 
       if (priceRupees > 0 && !hostUpiId) {
-        throw new Error("Enter the host UPI ID for a paid game.");
+        throw new Error(
+          "Enter the host UPI ID for a paid game."
+        );
       }
 
       if (hostUpiId.length > 100) {
-        throw new Error("The host UPI ID must be 100 characters or fewer.");
+        throw new Error(
+          "The host UPI ID must be 100 characters or fewer."
+        );
       }
 
       const { data, error: createError } = await supabase
@@ -479,6 +662,7 @@ export default function Dashboard({ user, onLogout }) {
 
       if (createError) throw createError;
 
+      // Add the organiser as the first participant.
       const { error: participantError } = await supabase
         .from("game_participants")
         .insert({
@@ -486,7 +670,8 @@ export default function Dashboard({ user, onLogout }) {
           player_id: user.id,
           status: "joined",
           slots_count: 1,
-          match_skill_level: playerProfile.skill_level || "Beginner",
+          match_skill_level:
+            playerProfile.skill_level || "Beginner",
         });
 
       if (participantError) {
@@ -496,10 +681,12 @@ export default function Dashboard({ user, onLogout }) {
         );
 
         setNotice(
-          "Game created, but your organizer entry could not be saved."
+          "Game created, but your organiser entry could not be saved."
         );
       } else {
-        setNotice("Your game is live. Get your squad together! ⚽");
+        setNotice(
+          "Your game is live. Get your squad together! ⚽"
+        );
       }
 
       setShowForm(false);
@@ -511,49 +698,65 @@ export default function Dashboard({ user, onLogout }) {
       await loadData();
     } catch (err) {
       console.error("KICKOFF create-game error:", err);
-      setError(err.message || "We couldn't create your game.");
+      setError(
+        err.message || "We couldn't create your game."
+      );
     } finally {
       setSaving(false);
     }
   }
 
+  // ------------------------------------------------------------
+  // PLAYER PROFILE
+  // ------------------------------------------------------------
+
   async function savePlayerProfile(event) {
     event.preventDefault();
+
     setProfileSaving(true);
     setError("");
     setNotice("");
 
     try {
       const form = new FormData(event.currentTarget);
-      const fullName = String(form.get("full_name") || "").trim();
-      const skillLevel = String(form.get("skill_level") || "");
-      const primaryPosition = String(form.get("primary_position") || "");
-      const secondaryPosition = String(form.get("secondary_position") || "");
-      const preferredFoot = String(form.get("preferred_foot") || "Right");
-      const jerseyRaw = String(form.get("jersey_number") || "").trim();
+
+      const fullName = String(
+        form.get("full_name") || ""
+      ).trim();
+
+      const skillLevel = String(
+        form.get("skill_level") || ""
+      );
+
+      const primaryPosition = String(
+        form.get("primary_position") || ""
+      );
+
+      const secondaryPosition = String(
+        form.get("secondary_position") || ""
+      );
+
+      const preferredFoot = String(
+        form.get("preferred_foot") || "Right"
+      );
+
+      const jerseyRaw = String(
+        form.get("jersey_number") || ""
+      ).trim();
+
       const bio = String(form.get("bio") || "").trim();
 
       if (fullName.length < 2 || fullName.length > 60) {
-        throw new Error("Enter your name using 2–60 characters.");
+        throw new Error(
+          "Enter your name using 2–60 characters."
+        );
       }
 
-      if (
-        !["Beginner", "Intermediate", "Amateur", "Professional"].includes(
-          skillLevel
-        )
-      ) {
+      if (!SKILL_LEVELS.includes(skillLevel)) {
         throw new Error("Choose your current playing level.");
       }
 
-      if (
-        ![
-          "Goalkeeper",
-          "Defender",
-          "Midfielder",
-          "Forward",
-          "Flexible / Any",
-        ].includes(primaryPosition)
-      ) {
+      if (!POSITIONS.includes(primaryPosition)) {
         throw new Error("Choose your main playing position.");
       }
 
@@ -565,11 +768,15 @@ export default function Dashboard({ user, onLogout }) {
           jerseyNumber < 0 ||
           jerseyNumber > 99)
       ) {
-        throw new Error("Jersey number must be between 0 and 99.");
+        throw new Error(
+          "Jersey number must be between 0 and 99."
+        );
       }
 
       if (bio.length > 240) {
-        throw new Error("Keep your player intro under 240 characters.");
+        throw new Error(
+          "Keep your player intro under 240 characters."
+        );
       }
 
       const payload = {
@@ -606,16 +813,24 @@ export default function Dashboard({ user, onLogout }) {
 
       setProfileLoaded(true);
       setProfileSaved(true);
-      setNotice("Player card saved. You’re ready to join the squad. ⚽");
+      setNotice(
+        "Player card saved. You’re ready to join the squad. ⚽"
+      );
 
       await loadData();
     } catch (err) {
       console.error("KICKOFF profile save error:", err);
-      setError(err.message || "Couldn't save your player card.");
+      setError(
+        err.message || "Couldn't save your player card."
+      );
     } finally {
       setProfileSaving(false);
     }
   }
+
+  // ------------------------------------------------------------
+  // JOIN / PAYMENT FLOWS
+  // ------------------------------------------------------------
 
   async function joinGame(game) {
     setNotice("");
@@ -627,7 +842,9 @@ export default function Dashboard({ user, onLogout }) {
     }
 
     if (myGameIds.includes(game.id)) {
-      setNotice("You're already listed as a participant in this game.");
+      setNotice(
+        "You're already listed as a participant in this game."
+      );
       return;
     }
 
@@ -640,37 +857,43 @@ export default function Dashboard({ user, onLogout }) {
       return;
     }
 
-    if ((participantCounts[game.id] || 0) >= game.max_players) {
+    if (
+      (participantCounts[game.id] || 0) >= game.max_players
+    ) {
       setError("This game is full.");
       return;
     }
 
     if (Number(game.price_per_player_paise || 0) > 0) {
       if (!game.host_upi_id || !game.host_upi_id.trim()) {
-        setError("The host has not added a UPI ID for this paid game yet.");
+        setError(
+          "The host has not added a UPI ID for this paid game yet."
+        );
         return;
       }
 
       setPaymentGame(game);
       setPaymentSlots(1);
-      setSelectedMatchSkillLevel(playerProfile.skill_level || "Beginner");
+      setSelectedMatchSkillLevel(
+        playerProfile.skill_level || "Beginner"
+      );
       setUpiReference("");
       return;
     }
 
-    setSelectedMatchSkillLevel(playerProfile.skill_level || "Beginner");
+    setSelectedMatchSkillLevel(
+      playerProfile.skill_level || "Beginner"
+    );
+
     setFreeJoinGame(game);
   }
 
   async function confirmFreeJoin(event) {
     event.preventDefault();
+
     if (!freeJoinGame) return;
 
-    if (
-      !["Beginner", "Intermediate", "Amateur", "Professional"].includes(
-        selectedMatchSkillLevel
-      )
-    ) {
+    if (!SKILL_LEVELS.includes(selectedMatchSkillLevel)) {
       setError("Choose your playing level for this match.");
       return;
     }
@@ -680,14 +903,18 @@ export default function Dashboard({ user, onLogout }) {
     setNotice("");
 
     try {
-      const { error: joinError } = await supabase.rpc("join_game_with_level", {
-        p_game_id: freeJoinGame.id,
-        p_skill_level: selectedMatchSkillLevel,
-      });
+      const { error: joinError } = await supabase.rpc(
+        "join_game_with_level",
+        {
+          p_game_id: freeJoinGame.id,
+          p_skill_level: selectedMatchSkillLevel,
+        }
+      );
 
       if (joinError) throw joinError;
 
       const joinedTitle = freeJoinGame.title;
+
       setFreeJoinGame(null);
 
       await loadData();
@@ -697,7 +924,10 @@ export default function Dashboard({ user, onLogout }) {
       );
     } catch (err) {
       console.error("KICKOFF join-game error:", err);
-      setError(err.message || "Couldn't join this game. Please try again.");
+      setError(
+        err.message || "Couldn't join this game. Please try again."
+      );
+
       await loadData();
     } finally {
       setJoiningGameId(null);
@@ -706,6 +936,7 @@ export default function Dashboard({ user, onLogout }) {
 
   async function submitPaymentRequest(event) {
     event.preventDefault();
+
     if (!paymentGame) return;
 
     setJoiningGameId(paymentGame.id);
@@ -715,14 +946,22 @@ export default function Dashboard({ user, onLogout }) {
     try {
       const slotCount = Number(paymentSlots);
 
-      if (!Number.isInteger(slotCount) || slotCount < 1 || slotCount > 50) {
-        throw new Error("Choose a valid number of slots (1–50).");
+      if (
+        !Number.isInteger(slotCount) ||
+        slotCount < 1 ||
+        slotCount > 50
+      ) {
+        throw new Error(
+          "Choose a valid number of slots (1–50)."
+        );
       }
 
       const reference = upiReference.trim();
 
       if (reference.length < 4 || reference.length > 100) {
-        throw new Error("Enter the UPI transaction reference (4–100 characters).");
+        throw new Error(
+          "Enter the UPI transaction reference (4–100 characters)."
+        );
       }
 
       const remaining =
@@ -735,12 +974,10 @@ export default function Dashboard({ user, onLogout }) {
         );
       }
 
-      if (
-        !["Beginner", "Intermediate", "Amateur", "Professional"].includes(
-          selectedMatchSkillLevel
-        )
-      ) {
-        throw new Error("Choose your playing level for this match.");
+      if (!SKILL_LEVELS.includes(selectedMatchSkillLevel)) {
+        throw new Error(
+          "Choose your playing level for this match."
+        );
       }
 
       const { error: submitError } = await supabase.rpc(
@@ -758,6 +995,7 @@ export default function Dashboard({ user, onLogout }) {
       setPaymentGame(null);
       setPaymentSlots(1);
       setUpiReference("");
+
       setNotice(
         `Payment request submitted as ${selectedMatchSkillLevel}. The host must verify the payment before approving your slots.`
       );
@@ -765,11 +1003,17 @@ export default function Dashboard({ user, onLogout }) {
       await loadData();
     } catch (err) {
       console.error("KICKOFF payment request error:", err);
-      setError(err.message || "Couldn't submit your payment request.");
+      setError(
+        err.message || "Couldn't submit your payment request."
+      );
     } finally {
       setJoiningGameId(null);
     }
   }
+
+  // ------------------------------------------------------------
+  // ORGANISER APPROVAL / CANCELLATION
+  // ------------------------------------------------------------
 
   async function reviewPaymentRequest(request, approve) {
     setReviewingRequestId(request.id);
@@ -790,6 +1034,7 @@ export default function Dashboard({ user, onLogout }) {
 
       if (reviewError) throw reviewError;
 
+      // Remove the request from the pending list immediately.
       setPaymentRequests((current) =>
         current.map((item) =>
           item.id === request.id
@@ -800,7 +1045,7 @@ export default function Dashboard({ user, onLogout }) {
 
       await loadData();
 
-      // Retain the resolved status if the refresh briefly returns stale data.
+      // Keep the resolved status if the refresh briefly returns stale data.
       setPaymentRequests((current) =>
         current.map((item) =>
           item.id === request.id
@@ -816,7 +1061,9 @@ export default function Dashboard({ user, onLogout }) {
       );
     } catch (err) {
       console.error("KICKOFF payment review error:", err);
-      setError(err.message || "Couldn't review this payment request.");
+      setError(
+        err.message || "Couldn't review this payment request."
+      );
     } finally {
       setReviewingRequestId(null);
     }
@@ -841,9 +1088,10 @@ export default function Dashboard({ user, onLogout }) {
     setNotice("");
 
     try {
-      const { error: cancelError } = await supabase.rpc("cancel_game", {
-        p_game_id: game.id,
-      });
+      const { error: cancelError } = await supabase.rpc(
+        "cancel_game",
+        { p_game_id: game.id }
+      );
 
       if (cancelError) throw cancelError;
 
@@ -860,16 +1108,24 @@ export default function Dashboard({ user, onLogout }) {
         )
       );
 
-      setNotice(`"${game.title}" has been cancelled successfully.`);
+      setNotice(
+        `"${game.title}" has been cancelled successfully.`
+      );
 
       await loadData();
     } catch (err) {
       console.error("KICKOFF cancel-game error:", err);
-      setError(err.message || "Couldn't cancel this game.");
+      setError(
+        err.message || "Couldn't cancel this game."
+      );
     } finally {
       setCancellingGameId(null);
     }
   }
+
+  // ------------------------------------------------------------
+  // SHARING / CLIPBOARD
+  // ------------------------------------------------------------
 
   function startFromTemplate(template) {
     setGameDraftTemplate(template);
@@ -890,7 +1146,10 @@ export default function Dashboard({ user, onLogout }) {
         await navigator.clipboard.writeText(
           `${textToShare}\n\nJoin Potato FC on KICKOFF: ${window.location.href}`
         );
-        setNotice("Potato FC details copied. Share them with the squad.");
+
+        setNotice(
+          "Potato FC details copied. Share them with the squad."
+        );
       } else {
         setNotice(textToShare);
       }
@@ -906,11 +1165,19 @@ export default function Dashboard({ user, onLogout }) {
   async function copyHostUpi(upiId) {
     try {
       await navigator.clipboard.writeText(upiId);
-      setNotice("Host UPI ID copied. Pay in your UPI app, then return here.");
+      setNotice(
+        "Host UPI ID copied. Pay in your UPI app, then return here."
+      );
     } catch {
-      setNotice(`Copy this host UPI ID manually: ${upiId}`);
+      setNotice(
+        `Copy this host UPI ID manually: ${upiId}`
+      );
     }
   }
+
+  // ------------------------------------------------------------
+  // GAME CARD
+  // ------------------------------------------------------------
 
   function GameCard({ game, index = 0 }) {
     const venue = venueFor(game);
@@ -919,19 +1186,34 @@ export default function Dashboard({ user, onLogout }) {
     const joined = myGameIds.includes(game.id);
     const organizer = game.organiser_id === user.id;
     const isJoining = joiningGameId === game.id;
-    const gameHasStarted = new Date(game.starts_at).getTime() <= clock;
+
+    const gameHasStarted =
+      new Date(game.starts_at).getTime() <= clock;
 
     const myLatestRequest = paymentRequests.find(
       (request) =>
-        request.game_id === game.id && request.player_id === user.id
+        request.game_id === game.id &&
+        request.player_id === user.id
     );
 
     const paymentPending =
-      String(myLatestRequest?.status || "").toUpperCase() === "PENDING";
+      String(myLatestRequest?.status || "").toUpperCase() ===
+      "PENDING";
 
     const roster = gameRoster[game.id] || [];
-    const blackTeam = roster.filter((player) => player.team_color === "BLACK");
-    const whiteTeam = roster.filter((player) => player.team_color === "WHITE");
+
+    const blackTeam = roster.filter(
+      (player) => player.team_color === "BLACK"
+    );
+
+    const whiteTeam = roster.filter(
+      (player) => player.team_color === "WHITE"
+    );
+
+    const unassignedTeam = roster.filter(
+      (player) =>
+        !["BLACK", "WHITE"].includes(player.team_color)
+    );
 
     return (
       <article className="game-card" key={game.id}>
@@ -953,8 +1235,10 @@ export default function Dashboard({ user, onLogout }) {
 
         <div className="game-details">
           <div className="game-card-kicker">
-            <span className="status-dot" />{" "}
-            {gameHasStarted ? "MATCH IN PROGRESS" : "OPEN MATCH"}
+            <span className="status-dot" />
+            {gameHasStarted
+              ? "MATCH IN PROGRESS"
+              : "OPEN MATCH"}
           </div>
 
           <h3>{game.title}</h3>
@@ -966,13 +1250,19 @@ export default function Dashboard({ user, onLogout }) {
 
           <div className="game-time">
             <span>◷</span>
-            {displayTime(game.starts_at)} – {displayTime(game.ends_at)}
+            {displayTime(game.starts_at)} –{" "}
+            {displayTime(game.ends_at)}
           </div>
 
           <div className="game-meta">
-            <span>♟ {count}/{game.max_players} slots</span>
             <span>
-              {full ? "Full" : `${game.max_players - count} spots left`}
+              ♟ {count}/{game.max_players} slots
+            </span>
+
+            <span>
+              {full
+                ? "Full"
+                : `${game.max_players - count} spots left`}
             </span>
           </div>
 
@@ -992,17 +1282,21 @@ export default function Dashboard({ user, onLogout }) {
             <div className="balanced-team-board">
               <div className="balanced-team-heading">
                 <div>
-                  <div className="section-eyebrow">POTATO FC TEAM PICKER</div>
+                  <div className="section-eyebrow">
+                    POTATO FC TEAM PICKER
+                  </div>
                   <strong>Balanced teams</strong>
                 </div>
+
                 <span>
-                  {roster.length} player{roster.length === 1 ? "" : "s"}
+                  {roster.length} player
+                  {roster.length === 1 ? "" : "s"}
                 </span>
               </div>
 
               <p className="balanced-team-note">
-                Teams rebalance automatically by the level each player selects
-                for this match.
+                Teams rebalance automatically by the level each
+                player selects for this match.
               </p>
 
               <div className="balanced-teams">
@@ -1025,10 +1319,14 @@ export default function Dashboard({ user, onLogout }) {
                     key={team.color}
                   >
                     <div className="balanced-team-title">
-                      <span className={`team-kit team-kit-${team.kit}`}>
+                      <span
+                        className={`team-kit team-kit-${team.kit}`}
+                      >
                         ◉
                       </span>
+
                       <strong>{team.title}</strong>
+
                       <small>
                         {team.players.reduce(
                           (sum, player) =>
@@ -1039,7 +1337,7 @@ export default function Dashboard({ user, onLogout }) {
                       </small>
                     </div>
 
-                    {team.players.length ? (
+                    {team.players.length > 0 ? (
                       <div className="balanced-team-players">
                         {team.players.map((player) => (
                           <div
@@ -1049,8 +1347,10 @@ export default function Dashboard({ user, onLogout }) {
                             <span className="balanced-player-name">
                               {player.full_name}
                             </span>
+
                             <span className="balanced-player-meta">
-                              {player.match_skill_level || player.skill_level}
+                              {player.match_skill_level ||
+                                player.skill_level}
                               {" · "}
                               {player.primary_position}
                             </span>
@@ -1071,6 +1371,23 @@ export default function Dashboard({ user, onLogout }) {
                   </section>
                 ))}
               </div>
+
+              {unassignedTeam.length > 0 && (
+                <div className="team-unassigned">
+                  <strong>Team assignment pending</strong>
+
+                  <span>
+                    {unassignedTeam
+                      .map((player) => player.full_name)
+                      .join(", ")}
+                  </span>
+
+                  <small>
+                    Refresh after the team-balancing migration
+                    has been applied.
+                  </small>
+                </div>
+              )}
             </div>
           )}
 
@@ -1082,6 +1399,7 @@ export default function Dashboard({ user, onLogout }) {
                   (game.price_per_player_paise || 0) / 100
                 ).toLocaleString("en-IN")}
               </strong>
+
               <small> / slot</small>
             </div>
 
@@ -1110,7 +1428,9 @@ export default function Dashboard({ user, onLogout }) {
                 : full
                 ? "Game full"
                 : Number(game.price_per_player_paise || 0) > 0
-                ? String(myLatestRequest?.status || "").toUpperCase() === "REJECTED"
+                ? String(
+                    myLatestRequest?.status || ""
+                  ).toUpperCase() === "REJECTED"
                   ? "Retry payment request"
                   : "Pay & request slots ↗"
                 : "Join game ↗"}
@@ -1159,7 +1479,10 @@ export default function Dashboard({ user, onLogout }) {
     setSearch("");
     setFilter("All games");
 
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
   }
 
   const pageTitle = {
@@ -1170,6 +1493,10 @@ export default function Dashboard({ user, onLogout }) {
     turfs: "Find your next turf.",
     profile: "Your player card.",
   }[page];
+
+  // ------------------------------------------------------------
+  // RENDER
+  // ------------------------------------------------------------
 
   return (
     <div className="kickoff-app">
@@ -1182,6 +1509,7 @@ export default function Dashboard({ user, onLogout }) {
           <span className="brand-mark">
             K<span>•</span>
           </span>
+
           <span className="brand-word">
             KICK<span>OFF</span>
           </span>
@@ -1193,7 +1521,9 @@ export default function Dashboard({ user, onLogout }) {
           {NAV_ITEMS.map((item) => (
             <button
               key={item.id}
-              className={`side-link ${page === item.id ? "active" : ""}`}
+              className={`side-link ${
+                page === item.id ? "active" : ""
+              }`}
               onClick={() => goTo(item.id)}
             >
               <span className="side-icon">{item.icon}</span>
@@ -1212,6 +1542,7 @@ export default function Dashboard({ user, onLogout }) {
           <div className="promo-ball">⚽</div>
           <strong>Game on.</strong>
           <p>Good people. Great football. No excuses.</p>
+
           <button onClick={() => setShowForm(true)}>
             + Create a game
           </button>
@@ -1228,7 +1559,8 @@ export default function Dashboard({ user, onLogout }) {
           <button
             className="logout-icon"
             title="Log out"
-            onClick={onLogout}
+            disabled={loggingOut}
+            onClick={handleLogout}
           >
             ↗
           </button>
@@ -1237,17 +1569,25 @@ export default function Dashboard({ user, onLogout }) {
 
       <div className="main-shell">
         <header className="mobile-header">
-          <button className="brand" onClick={() => goTo("home")}>
+          <button
+            className="brand"
+            onClick={() => goTo("home")}
+          >
             <span className="brand-mark">
               K<span>•</span>
             </span>
+
             <span className="brand-word">
               KICK<span>OFF</span>
             </span>
           </button>
 
-          <button className="mobile-logout" onClick={onLogout}>
-            Log out ↗
+          <button
+            className="mobile-logout"
+            onClick={handleLogout}
+            disabled={loggingOut}
+          >
+            {loggingOut ? "Logging out…" : "Log out ↗"}
           </button>
         </header>
 
@@ -1271,7 +1611,8 @@ export default function Dashboard({ user, onLogout }) {
               <div>
                 <strong>Complete your player card</strong>
                 <p>
-                  Add your name, skill level and position before joining a match.
+                  Add your name, skill level and position before
+                  joining a match.
                 </p>
               </div>
               <button onClick={() => goTo("profile")}>
@@ -1280,6 +1621,7 @@ export default function Dashboard({ user, onLogout }) {
             </div>
           )}
 
+          {/* HOME */}
           {page === "home" && (
             <>
               <section className="welcome-hero">
@@ -1296,8 +1638,9 @@ export default function Dashboard({ user, onLogout }) {
                   </h1>
 
                   <p>
-                    Find your squad, discover local games and get back on the
-                    pitch. Your next great match is closer than you think.
+                    Find your squad, discover local games and get
+                    back on the pitch. Your next great match is
+                    closer than you think.
                   </p>
 
                   <div className="hero-actions">
@@ -1398,9 +1741,10 @@ export default function Dashboard({ user, onLogout }) {
                   </h2>
 
                   <p>
-                    One community for the Potatoes from Koramangala, HSR, BTM,
-                    JP Nagar, Jayanagar, Banashankari, Electronic City, Sarjapur
-                    Road, Kumaraswamy Layout and everywhere nearby.
+                    One community for the Potatoes from Koramangala,
+                    HSR, BTM, JP Nagar, Jayanagar, Banashankari,
+                    Electronic City, Sarjapur Road, Kumaraswamy
+                    Layout and everywhere nearby.
                   </p>
 
                   <div className="potato-home-actions">
@@ -1434,16 +1778,24 @@ export default function Dashboard({ user, onLogout }) {
               <section className="content-section">
                 <div className="section-heading">
                   <div>
-                    <div className="section-eyebrow">THE COMMUNITY</div>
+                    <div className="section-eyebrow">
+                      THE COMMUNITY
+                    </div>
+
                     <h2>
                       Games worth showing up for<span>.</span>
                     </h2>
+
                     <p>
-                      Real matches, real players. Find a spot and get involved.
+                      Real matches, real players. Find a spot and
+                      get involved.
                     </p>
                   </div>
 
-                  <button className="view-all" onClick={() => goTo("games")}>
+                  <button
+                    className="view-all"
+                    onClick={() => goTo("games")}
+                  >
                     All games ↗
                   </button>
                 </div>
@@ -1455,7 +1807,11 @@ export default function Dashboard({ user, onLogout }) {
                 ) : (
                   <div className="games-grid">
                     {games.slice(0, 3).map((game, index) => (
-                      <GameCard key={game.id} game={game} index={index} />
+                      <GameCard
+                        key={game.id}
+                        game={game}
+                        index={index}
+                      />
                     ))}
 
                     {games.length === 0 && (
@@ -1463,9 +1819,10 @@ export default function Dashboard({ user, onLogout }) {
                         <span>⚽</span>
                         <h3>Be the first to kick off.</h3>
                         <p>
-                          No upcoming games yet. Create one and bring your squad
-                          together.
+                          No upcoming games yet. Create one and
+                          bring your squad together.
                         </p>
+
                         <button
                           className="lime-button"
                           onClick={() => setShowForm(true)}
@@ -1480,6 +1837,7 @@ export default function Dashboard({ user, onLogout }) {
             </>
           )}
 
+          {/* POTATO FC COMMUNITY */}
           {page === "community" && (
             <section className="content-section page-section potato-community-page">
               <div className="potato-community-hero">
@@ -1487,13 +1845,15 @@ export default function Dashboard({ user, onLogout }) {
                   <div className="section-eyebrow">
                     KICKOFF CLUBHOUSE · SOUTH BENGALURU
                   </div>
+
                   <h1>
                     Potatoes, <span>assemble.</span>
                   </h1>
+
                   <p>
-                    A community-first home for the people who make the game
-                    happen. Find your run, meet the squad, and keep the weekly
-                    football ritual alive.
+                    A community-first home for the people who make
+                    the game happen. Find your run, meet the squad,
+                    and keep the weekly football ritual alive.
                   </p>
 
                   <div className="potato-community-stats">
@@ -1517,12 +1877,17 @@ export default function Dashboard({ user, onLogout }) {
 
               <div className="potato-section-heading">
                 <div>
-                  <div className="section-eyebrow">THE HOME TURF CIRCLE</div>
+                  <div className="section-eyebrow">
+                    THE HOME TURF CIRCLE
+                  </div>
+
                   <h2>
                     South Bengaluru, <span>one squad.</span>
                   </h2>
+
                   <p>
-                    Open to Potatoes from these neighbourhoods and nearby areas.
+                    Open to Potatoes from these neighbourhoods
+                    and nearby areas.
                   </p>
                 </div>
 
@@ -1549,13 +1914,15 @@ export default function Dashboard({ user, onLogout }) {
                   <div className="section-eyebrow">
                     NEXT WEEK · WEEKLY ROUTINE
                   </div>
+
                   <h2>
                     Four chances to <span>get a game in.</span>
                   </h2>
+
                   <p>
-                    Dates roll forward every week. Times, booking and price
-                    must be confirmed by the organiser before a live KICKOFF
-                    match is published.
+                    Dates roll forward every week. Times, booking
+                    and price must be confirmed by the organiser
+                    before a live KICKOFF match is published.
                   </p>
                 </div>
               </div>
@@ -1574,13 +1941,16 @@ export default function Dashboard({ user, onLogout }) {
                     </div>
 
                     <div className="weekly-run-date">
-                      {new Date(`${run.date}T12:00:00`).toLocaleDateString(
-                        "en-IN",
-                        { day: "numeric", month: "short" }
-                      )}
+                      {new Date(
+                        `${run.date}T12:00:00`
+                      ).toLocaleDateString("en-IN", {
+                        day: "numeric",
+                        month: "short",
+                      })}
                     </div>
 
                     <h3>{run.venueName}</h3>
+
                     <p className="weekly-run-subtitle">
                       Potato FC · {run.formatLabel} football
                     </p>
@@ -1593,11 +1963,13 @@ export default function Dashboard({ user, onLogout }) {
                     </div>
 
                     <div className="weekly-run-detail">
-                      <span>◷</span>Kick-off time to be set
+                      <span>◷</span>
+                      Kick-off time to be set
                     </div>
 
                     <div className="weekly-run-detail">
-                      <span>₹</span>Price to be confirmed by organiser
+                      <span>₹</span>
+                      Price to be confirmed by organiser
                     </div>
 
                     <button
@@ -1624,40 +1996,49 @@ export default function Dashboard({ user, onLogout }) {
                   <span>01</span>
                   <strong>Player card first</strong>
                   <p>
-                    Keep your level and position current so organisers know how
-                    to balance the squad.
+                    Keep your level and position current so
+                    organisers know how to balance the squad.
                   </p>
                 </div>
+
                 <div>
                   <span>02</span>
                   <strong>Clear headcount</strong>
                   <p>
-                    Join in KICKOFF so everyone can see the live number of slots
-                    claimed.
+                    Join in KICKOFF so everyone can see the live
+                    number of slots claimed.
                   </p>
                 </div>
+
                 <div>
                   <span>03</span>
                   <strong>Show up for the squad</strong>
                   <p>
-                    If plans change, tell the organiser early. Payment and
-                    cancellation rules stay visible on each match.
+                    If plans change, tell the organiser early.
+                    Payment and cancellation rules stay visible
+                    on each match.
                   </p>
                 </div>
               </div>
             </section>
           )}
 
+          {/* FIND A GAME */}
           {page === "games" && (
             <section className="content-section page-section">
               <div className="section-heading">
                 <div>
-                  <div className="section-eyebrow">GET IN THE GAME</div>
+                  <div className="section-eyebrow">
+                    GET IN THE GAME
+                  </div>
+
                   <h1>
                     {pageTitle}<span>.</span>
                   </h1>
+
                   <p>
-                    Browse upcoming community matches and claim your spot.
+                    Browse upcoming community matches and claim
+                    your spot.
                   </p>
                 </div>
 
@@ -1709,7 +2090,11 @@ export default function Dashboard({ user, onLogout }) {
               ) : (
                 <div className="games-grid">
                   {visibleGames.map((game, index) => (
-                    <GameCard key={game.id} game={game} index={index} />
+                    <GameCard
+                      key={game.id}
+                      game={game}
+                      index={index}
+                    />
                   ))}
 
                   {visibleGames.length === 0 && (
@@ -1717,8 +2102,10 @@ export default function Dashboard({ user, onLogout }) {
                       <span>⌕</span>
                       <h3>No matches found.</h3>
                       <p>
-                        Try another search or create a game for your community.
+                        Try another search or create a game for
+                        your community.
                       </p>
+
                       <button
                         className="lime-button"
                         onClick={() => setShowForm(true)}
@@ -1740,16 +2127,20 @@ export default function Dashboard({ user, onLogout }) {
             </section>
           )}
 
+          {/* MY GAMES / PAYMENT APPROVAL */}
           {page === "my-games" && (
             <section className="content-section page-section">
               <div className="section-heading">
                 <div>
                   <div className="section-eyebrow">YOUR LINE-UP</div>
+
                   <h1>
                     {pageTitle}<span>.</span>
                   </h1>
+
                   <p>
-                    Every match you've joined and every game you're organising.
+                    Every match you've joined and every game
+                    you're organising.
                   </p>
                 </div>
 
@@ -1763,7 +2154,8 @@ export default function Dashboard({ user, onLogout }) {
 
               {paymentRequests.some(
                 (request) =>
-                  String(request.status || "").toUpperCase() === "PENDING" &&
+                  String(request.status || "").toUpperCase() ===
+                    "PENDING" &&
                   games.some(
                     (game) =>
                       game.id === request.game_id &&
@@ -1773,13 +2165,17 @@ export default function Dashboard({ user, onLogout }) {
                 <section className="content-section payment-approval-section">
                   <div className="section-heading">
                     <div>
-                      <div className="section-eyebrow">HOST CONTROLS</div>
+                      <div className="section-eyebrow">
+                        HOST CONTROLS
+                      </div>
+
                       <h2>
                         Payment requests<span>.</span>
                       </h2>
+
                       <p>
-                        Check your UPI app first. A transaction reference alone
-                        is not proof of payment.
+                        Check your UPI app first. A transaction
+                        reference alone is not proof of payment.
                       </p>
                     </div>
                   </div>
@@ -1800,7 +2196,9 @@ export default function Dashboard({ user, onLogout }) {
                         const requestGame = games.find(
                           (game) => game.id === request.game_id
                         );
-                        const busy = reviewingRequestId === request.id;
+
+                        const busy =
+                          reviewingRequestId === request.id;
 
                         return (
                           <article
@@ -1821,14 +2219,24 @@ export default function Dashboard({ user, onLogout }) {
                                 gap: "8px",
                               }}
                             >
-                              <strong>{requestGame?.title || "Game payment"}</strong>
+                              <strong>
+                                {requestGame?.title || "Game payment"}
+                              </strong>
+
                               <span className="section-eyebrow">
                                 PENDING VERIFICATION
                               </span>
                             </div>
 
                             <div>
-                              Player ID: <code>{request.player_id.slice(0, 8)}…</code>
+                              Player:{" "}
+                              <strong>
+                                {request.player_name || "Player"}
+                              </strong>
+
+                              <span className="payment-player-id">
+                                {" "}· ID {request.player_id.slice(0, 8)}…
+                              </span>
                             </div>
 
                             <div>
@@ -1845,17 +2253,23 @@ export default function Dashboard({ user, onLogout }) {
 
                             <div>
                               Playing level:{" "}
-                              <strong>{request.match_skill_level || "Beginner"}</strong>
+                              <strong>
+                                {request.match_skill_level || "Beginner"}
+                              </strong>
                             </div>
 
                             <div>
-                              UPI reference: <code>{request.upi_reference}</code>
+                              UPI reference:{" "}
+                              <code>{request.upi_reference}</code>
                             </div>
 
-                            <p className="form-note" style={{ margin: 0 }}>
-                              Open your own UPI app and confirm the amount and
-                              transaction before approving. Approval reserves the
-                              slots in KICKOFF.
+                            <p
+                              className="form-note"
+                              style={{ margin: 0 }}
+                            >
+                              Open your own UPI app and confirm the
+                              amount and transaction before approving.
+                              Approval reserves the slots in KICKOFF.
                             </p>
 
                             <div
@@ -1869,7 +2283,9 @@ export default function Dashboard({ user, onLogout }) {
                                 type="button"
                                 className="lime-button"
                                 disabled={busy}
-                                onClick={() => reviewPaymentRequest(request, true)}
+                                onClick={() =>
+                                  reviewPaymentRequest(request, true)
+                                }
                               >
                                 {busy
                                   ? "Saving…"
@@ -1880,7 +2296,9 @@ export default function Dashboard({ user, onLogout }) {
                                 type="button"
                                 className="outline-dark-button"
                                 disabled={busy}
-                                onClick={() => reviewPaymentRequest(request, false)}
+                                onClick={() =>
+                                  reviewPaymentRequest(request, false)
+                                }
                               >
                                 Reject request
                               </button>
@@ -1893,11 +2311,17 @@ export default function Dashboard({ user, onLogout }) {
               )}
 
               {loading ? (
-                <div className="empty-panel">Loading your games…</div>
+                <div className="empty-panel">
+                  Loading your games…
+                </div>
               ) : (
                 <div className="games-grid">
                   {myGames.map((game, index) => (
-                    <GameCard key={game.id} game={game} index={index} />
+                    <GameCard
+                      key={game.id}
+                      game={game}
+                      index={index}
+                    />
                   ))}
 
                   {myGames.length === 0 && (
@@ -1907,6 +2331,7 @@ export default function Dashboard({ user, onLogout }) {
                       <p>
                         Join a match or organise one to see it here.
                       </p>
+
                       <button
                         className="lime-button"
                         onClick={() => goTo("games")}
@@ -1920,17 +2345,22 @@ export default function Dashboard({ user, onLogout }) {
             </section>
           )}
 
+          {/* FIND A TURF */}
           {page === "turfs" && (
             <section className="content-section page-section">
               <div className="section-heading">
                 <div>
-                  <div className="section-eyebrow">FIND YOUR GROUND</div>
+                  <div className="section-eyebrow">
+                    FIND YOUR GROUND
+                  </div>
+
                   <h1>
                     {pageTitle}<span>.</span>
                   </h1>
+
                   <p>
-                    Explore active venue listings. Live availability and
-                    booking are not connected yet.
+                    Explore active venue listings. Live availability
+                    and booking are not connected yet.
                   </p>
                 </div>
               </div>
@@ -1957,7 +2387,10 @@ export default function Dashboard({ user, onLogout }) {
                         .includes(search.toLowerCase())
                     )
                     .map((venue) => (
-                      <article className="turf-card" key={venue.id}>
+                      <article
+                        className="turf-card"
+                        key={venue.id}
+                      >
                         <div className="turf-art">
                           <span>🏟</span>
                           <small>VENUE LISTING</small>
@@ -1989,8 +2422,8 @@ export default function Dashboard({ user, onLogout }) {
                       <span>⌖</span>
                       <h3>No turfs listed yet.</h3>
                       <p>
-                        Active venue listings will show up here when added by
-                        the team.
+                        Active venue listings will show up here
+                        when added by the team.
                       </p>
                     </div>
                   )}
@@ -1999,15 +2432,18 @@ export default function Dashboard({ user, onLogout }) {
             </section>
           )}
 
+          {/* PLAYER PROFILE */}
           {page === "profile" && (
             <section className="content-section page-section">
               <div className="section-heading">
                 <div>
                   <div className="section-eyebrow">PLAYER ID</div>
-                  <h1>Your player card<span>.</span></h1>
+                  <h1>
+                    Your player card<span>.</span>
+                  </h1>
                   <p>
-                    Tell your squad how you play. You only need to set this up
-                    once.
+                    Tell your squad how you play. You only need
+                    to set this up once.
                   </p>
                 </div>
 
@@ -2017,14 +2453,18 @@ export default function Dashboard({ user, onLogout }) {
                   }`}
                 >
                   <span />
-                  {profileComplete ? "PROFILE READY" : "SETUP REQUIRED"}
+                  {profileComplete
+                    ? "PROFILE READY"
+                    : "SETUP REQUIRED"}
                 </div>
               </div>
 
               <div className="profile-panel player-profile-panel">
                 <div className="profile-cover">
                   <span>KICKOFF · PLAYER ID</span>
-                  <div className="profile-big-avatar">{initials || "P"}</div>
+                  <div className="profile-big-avatar">
+                    {initials || "P"}
+                  </div>
                   <div className="profile-cover-tag">
                     {playerProfile.skill_level || "CHOOSE YOUR LEVEL"}
                   </div>
@@ -2032,20 +2472,29 @@ export default function Dashboard({ user, onLogout }) {
 
                 <form
                   className="profile-edit-form"
-                  key={profileLoaded ? "profile-loaded" : "profile-loading"}
+                  key={
+                    profileLoaded
+                      ? "profile-loaded"
+                      : "profile-loading"
+                  }
                   onSubmit={savePlayerProfile}
                 >
                   <div className="profile-form-intro">
                     <div>
-                      <div className="section-eyebrow">YOUR PLAYER DETAILS</div>
+                      <div className="section-eyebrow">
+                        YOUR PLAYER DETAILS
+                      </div>
+
                       <h2>
                         {profileComplete
                           ? "Keep your card current"
                           : "Build your player card"}
                       </h2>
+
                       <p>
-                        Your name, playing level and main position are required
-                        before joining or publishing a match.
+                        Your name, playing level and main position
+                        are required before joining or publishing
+                        a match.
                       </p>
                     </div>
 
@@ -2068,33 +2517,38 @@ export default function Dashboard({ user, onLogout }) {
 
                   <div className="form-two-columns">
                     <label>
-                      Playing level <span className="required-mark">*</span>
+                      Playing level{" "}
+                      <span className="required-mark">*</span>
                       <select
                         name="skill_level"
                         defaultValue={playerProfile.skill_level || ""}
                         required
                       >
                         <option value="">Choose your level</option>
-                        <option value="Beginner">Beginner</option>
-                        <option value="Intermediate">Intermediate</option>
-                        <option value="Amateur">Amateur</option>
-                        <option value="Professional">Professional</option>
+                        {SKILL_LEVELS.map((level) => (
+                          <option value={level} key={level}>
+                            {level}
+                          </option>
+                        ))}
                       </select>
                     </label>
 
                     <label>
-                      Main position <span className="required-mark">*</span>
+                      Main position{" "}
+                      <span className="required-mark">*</span>
                       <select
                         name="primary_position"
-                        defaultValue={playerProfile.primary_position || ""}
+                        defaultValue={
+                          playerProfile.primary_position || ""
+                        }
                         required
                       >
                         <option value="">Choose a position</option>
-                        <option value="Goalkeeper">Goalkeeper</option>
-                        <option value="Defender">Defender</option>
-                        <option value="Midfielder">Midfielder</option>
-                        <option value="Forward">Forward</option>
-                        <option value="Flexible / Any">Flexible / Any</option>
+                        {POSITIONS.map((position) => (
+                          <option value={position} key={position}>
+                            {position}
+                          </option>
+                        ))}
                       </select>
                     </label>
                   </div>
@@ -2104,14 +2558,16 @@ export default function Dashboard({ user, onLogout }) {
                       Secondary position <small>(optional)</small>
                       <select
                         name="secondary_position"
-                        defaultValue={playerProfile.secondary_position || ""}
+                        defaultValue={
+                          playerProfile.secondary_position || ""
+                        }
                       >
                         <option value="">None</option>
-                        <option value="Goalkeeper">Goalkeeper</option>
-                        <option value="Defender">Defender</option>
-                        <option value="Midfielder">Midfielder</option>
-                        <option value="Forward">Forward</option>
-                        <option value="Flexible / Any">Flexible / Any</option>
+                        {POSITIONS.map((position) => (
+                          <option value={position} key={position}>
+                            {position}
+                          </option>
+                        ))}
                       </select>
                     </label>
 
@@ -2119,7 +2575,9 @@ export default function Dashboard({ user, onLogout }) {
                       Preferred foot
                       <select
                         name="preferred_foot"
-                        defaultValue={playerProfile.preferred_foot || "Right"}
+                        defaultValue={
+                          playerProfile.preferred_foot || "Right"
+                        }
                       >
                         <option value="Right">Right-footed</option>
                         <option value="Left">Left-footed</option>
@@ -2136,7 +2594,9 @@ export default function Dashboard({ user, onLogout }) {
                         type="number"
                         min="0"
                         max="99"
-                        defaultValue={playerProfile.jersey_number ?? ""}
+                        defaultValue={
+                          playerProfile.jersey_number ?? ""
+                        }
                         placeholder="e.g. 10"
                       />
                     </label>
@@ -2153,7 +2613,8 @@ export default function Dashboard({ user, onLogout }) {
                   </div>
 
                   <label>
-                    Short player intro <small>(optional · max 240 characters)</small>
+                    Short player intro{" "}
+                    <small>(optional · max 240 characters)</small>
                     <textarea
                       name="bio"
                       rows={3}
@@ -2164,15 +2625,20 @@ export default function Dashboard({ user, onLogout }) {
                   </label>
 
                   <div className="profile-preview-strip">
-                    <div className="profile-preview-avatar">{initials || "P"}</div>
+                    <div className="profile-preview-avatar">
+                      {initials || "P"}
+                    </div>
+
                     <div className="profile-preview-copy">
                       <strong>{displayName}</strong>
                       <span>
                         {playerProfile.skill_level || "Level not set"}
                         {" · "}
-                        {playerProfile.primary_position || "Position not set"}
+                        {playerProfile.primary_position ||
+                          "Position not set"}
                       </span>
                     </div>
+
                     <span className="profile-preview-check">
                       {profileComplete ? "✓ SAVED" : "PLAYER CARD"}
                     </span>
@@ -2198,17 +2664,50 @@ export default function Dashboard({ user, onLogout }) {
                   <strong>Find your fit</strong>
                   <small>Hosts can see your level and role.</small>
                 </div>
+
                 <div>
                   <span>02</span>
                   <strong>Join faster</strong>
                   <small>Your player details are reused.</small>
                 </div>
+
                 <div>
                   <span>03</span>
                   <strong>Play as a squad</strong>
                   <small>Meet the players already signed up.</small>
                 </div>
               </div>
+
+              {/* LOGOUT OPTION IS ALSO AVAILABLE HERE */}
+              <section className="profile-account-panel">
+                <div className="profile-account-copy">
+                  <div className="section-eyebrow">
+                    ACCOUNT & SESSION
+                  </div>
+
+                  <h2>Signed in to KICKOFF</h2>
+
+                  <p>
+                    {user.email || "Your authenticated player account"}
+                  </p>
+
+                  <small>
+                    Logging out will return you to the sign-in screen.
+                  </small>
+                </div>
+
+                <button
+                  type="button"
+                  className="profile-logout-button"
+                  onClick={handleLogout}
+                  disabled={loggingOut}
+                >
+                  <span aria-hidden="true">↗</span>
+                  {loggingOut
+                    ? "Logging out…"
+                    : "Log out of KICKOFF"}
+                </button>
+              </section>
             </section>
           )}
 
@@ -2231,6 +2730,7 @@ export default function Dashboard({ user, onLogout }) {
               <span className="brand-mark">
                 K<span>•</span>
               </span>
+
               <span className="brand-word">
                 KICK<span>OFF</span>
               </span>
@@ -2242,6 +2742,7 @@ export default function Dashboard({ user, onLogout }) {
         </main>
       </div>
 
+      {/* MOBILE NAV */}
       <nav className="mobile-nav">
         {NAV_ITEMS.map((item) => (
           <button
@@ -2250,6 +2751,7 @@ export default function Dashboard({ user, onLogout }) {
             onClick={() => goTo(item.id)}
           >
             <span>{item.icon}</span>
+
             <small>
               {item.label === "Find a game"
                 ? "Games"
@@ -2267,11 +2769,15 @@ export default function Dashboard({ user, onLogout }) {
         ))}
       </nav>
 
+      {/* CREATE GAME MODAL */}
       {showForm && (
         <div
           className="modal-backdrop"
           onClick={(event) => {
-            if (event.target === event.currentTarget && !saving) {
+            if (
+              event.target === event.currentTarget &&
+              !saving
+            ) {
               setShowForm(false);
               setGameDraftTemplate(null);
             }
@@ -2284,7 +2790,9 @@ export default function Dashboard({ user, onLogout }) {
           >
             <div className="form-heading">
               <div>
-                <div className="section-eyebrow">BRING YOUR SQUAD</div>
+                <div className="section-eyebrow">
+                  BRING YOUR SQUAD
+                </div>
 
                 <h2>
                   {gameDraftTemplate
@@ -2373,7 +2881,9 @@ export default function Dashboard({ user, onLogout }) {
                 Match format
                 <select
                   name="format"
-                  defaultValue={gameDraftTemplate?.format || "7-a-side"}
+                  defaultValue={
+                    gameDraftTemplate?.format || "7-a-side"
+                  }
                 >
                   <option>5-a-side</option>
                   <option>7-a-side</option>
@@ -2411,7 +2921,8 @@ export default function Dashboard({ user, onLogout }) {
             </div>
 
             <label>
-              Host UPI ID <small>(required for paid games)</small>
+              Host UPI ID{" "}
+              <small>(required for paid games)</small>
               <input
                 name="host_upi_id"
                 type="text"
@@ -2423,9 +2934,10 @@ export default function Dashboard({ user, onLogout }) {
             </label>
 
             <p className="form-note">
-              Players pay separately in their UPI app and submit a transaction
-              reference. You must verify each payment yourself before approving
-              slots. This does not reserve a turf.
+              Players pay separately in their UPI app and submit a
+              transaction reference. You must verify each payment
+              yourself before approving slots. This does not
+              reserve a turf.
             </p>
 
             <button
@@ -2439,6 +2951,7 @@ export default function Dashboard({ user, onLogout }) {
         </div>
       )}
 
+      {/* FREE GAME JOIN MODAL */}
       {freeJoinGame && (
         <div
           className="modal-backdrop"
@@ -2451,15 +2964,20 @@ export default function Dashboard({ user, onLogout }) {
             }
           }}
         >
-          <form className="game-form" onSubmit={confirmFreeJoin}>
+          <form
+            className="game-form"
+            onSubmit={confirmFreeJoin}
+          >
             <div className="form-heading">
               <div>
                 <div className="section-eyebrow">
                   POTATO FC · TEAM BALANCING
                 </div>
+
                 <h2>
                   Pick your match level<span>.</span>
                 </h2>
+
                 <p>{freeJoinGame.title}</p>
               </div>
 
@@ -2482,10 +3000,11 @@ export default function Dashboard({ user, onLogout }) {
                 }
                 required
               >
-                <option value="Beginner">Beginner</option>
-                <option value="Intermediate">Intermediate</option>
-                <option value="Amateur">Amateur</option>
-                <option value="Professional">Professional</option>
+                {SKILL_LEVELS.map((level) => (
+                  <option value={level} key={level}>
+                    {level}
+                  </option>
+                ))}
               </select>
             </label>
 
@@ -2495,6 +3014,7 @@ export default function Dashboard({ user, onLogout }) {
                 <strong>BLACK TEAM</strong>
                 <small>Dark jersey</small>
               </div>
+
               <div className="kit-choice kit-choice-white">
                 <span>◉</span>
                 <strong>WHITE TEAM</strong>
@@ -2503,9 +3023,9 @@ export default function Dashboard({ user, onLogout }) {
             </div>
 
             <p className="form-note">
-              Your selected level is used to balance the match. KICKOFF
-              automatically distributes confirmed players between Black and
-              White, then rebalances as players join.
+              Your selected level is used to balance the match.
+              KICKOFF automatically distributes confirmed players
+              between Black and White, then rebalances as players join.
             </p>
 
             <button
@@ -2521,6 +3041,7 @@ export default function Dashboard({ user, onLogout }) {
         </div>
       )}
 
+      {/* PAID GAME REQUEST MODAL */}
       {paymentGame && (
         <div
           className="modal-backdrop"
@@ -2533,13 +3054,20 @@ export default function Dashboard({ user, onLogout }) {
             }
           }}
         >
-          <form className="game-form" onSubmit={submitPaymentRequest}>
+          <form
+            className="game-form"
+            onSubmit={submitPaymentRequest}
+          >
             <div className="form-heading">
               <div>
-                <div className="section-eyebrow">DIRECT UPI PAYMENT</div>
+                <div className="section-eyebrow">
+                  DIRECT UPI PAYMENT
+                </div>
+
                 <h2>
                   Request your slots<span>.</span>
                 </h2>
+
                 <p>{paymentGame.title}</p>
               </div>
 
@@ -2563,6 +3091,7 @@ export default function Dashboard({ user, onLogout }) {
               }}
             >
               <span className="section-eyebrow">PAY THE HOST</span>
+
               <strong style={{ overflowWrap: "anywhere" }}>
                 {paymentGame.host_upi_id}
               </strong>
@@ -2570,14 +3099,17 @@ export default function Dashboard({ user, onLogout }) {
               <button
                 type="button"
                 className="outline-dark-button"
-                onClick={() => copyHostUpi(paymentGame.host_upi_id)}
+                onClick={() =>
+                  copyHostUpi(paymentGame.host_upi_id)
+                }
               >
                 Copy host UPI ID
               </button>
 
               <p className="form-note" style={{ margin: 0 }}>
-                Open your UPI app separately, pay the host, and return here.
-                KICKOFF does not automatically verify bank or UPI payments.
+                Open your UPI app separately, pay the host, and
+                return here. KICKOFF does not automatically verify
+                bank or UPI payments.
               </p>
             </div>
 
@@ -2595,7 +3127,9 @@ export default function Dashboard({ user, onLogout }) {
                   )
                 )}
                 value={paymentSlots}
-                onChange={(event) => setPaymentSlots(event.target.value)}
+                onChange={(event) =>
+                  setPaymentSlots(event.target.value)
+                }
                 required
               />
             </label>
@@ -2609,16 +3143,18 @@ export default function Dashboard({ user, onLogout }) {
                 }
                 required
               >
-                <option value="Beginner">Beginner</option>
-                <option value="Intermediate">Intermediate</option>
-                <option value="Amateur">Amateur</option>
-                <option value="Professional">Professional</option>
+                {SKILL_LEVELS.map((level) => (
+                  <option value={level} key={level}>
+                    {level}
+                  </option>
+                ))}
               </select>
             </label>
 
             <p className="form-note">
-              Choose honestly so Potato FC can balance the Black and White
-              teams. This level applies to all slots in this booking.
+              Choose honestly so Potato FC can balance the Black
+              and White teams. This level applies to all slots in
+              this booking.
             </p>
 
             <div className="kit-choice-preview">
@@ -2627,6 +3163,7 @@ export default function Dashboard({ user, onLogout }) {
                 <strong>BLACK TEAM</strong>
                 <small>Dark jersey</small>
               </div>
+
               <div className="kit-choice kit-choice-white">
                 <span>◉</span>
                 <strong>WHITE TEAM</strong>
@@ -2644,10 +3181,14 @@ export default function Dashboard({ user, onLogout }) {
               }}
             >
               <span>Total to pay</span>
+
               <strong>
                 ₹
                 {(
-                  (Number(paymentGame.price_per_player_paise || 0) / 100) *
+                  (Number(
+                    paymentGame.price_per_player_paise || 0
+                  ) /
+                    100) *
                   Math.max(0, Number(paymentSlots) || 0)
                 ).toLocaleString("en-IN")}
               </strong>
@@ -2657,7 +3198,9 @@ export default function Dashboard({ user, onLogout }) {
               UPI transaction reference / UTR
               <input
                 value={upiReference}
-                onChange={(event) => setUpiReference(event.target.value)}
+                onChange={(event) =>
+                  setUpiReference(event.target.value)
+                }
                 placeholder="Enter the reference shown by your UPI app"
                 minLength={4}
                 maxLength={100}
@@ -2667,9 +3210,9 @@ export default function Dashboard({ user, onLogout }) {
             </label>
 
             <p className="form-note">
-              Submitting a reference does not prove payment. Your slots are
-              not confirmed until the host checks their UPI app and approves
-              your request.
+              Submitting a reference does not prove payment.
+              Your slots are not confirmed until the host checks
+              their UPI app and approves your request.
             </p>
 
             <button
