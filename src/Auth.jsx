@@ -4,10 +4,8 @@ import { supabase } from "./supabase";
 import "./Auth.css";
 
 export default function Auth({ onLogin }) {
-  const [mode, setMode] = useState("login");
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [phone, setPhone] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -17,36 +15,50 @@ export default function Auth({ onLogin }) {
     setLoading(true);
 
     try {
-      if (mode === "signup") {
-        const { data, error } = await supabase.auth.signUp({
-          email: email.trim(),
-          password,
+      const cleanName = name.trim();
+
+      // Accept a 10-digit Indian number or a number with +91.
+      let digits = phone.replace(/\D/g, "");
+
+      if (digits.startsWith("91") && digits.length === 12) {
+        digits = digits.slice(2);
+      }
+
+      if (cleanName.length < 2) {
+        throw new Error("Please enter your full name.");
+      }
+
+      if (!/^[6-9]\d{9}$/.test(digits)) {
+        throw new Error("Please enter a valid 10-digit mobile number.");
+      }
+
+      const normalizedPhone = `+91${digits}`;
+
+      // Create a guest account without email, password or OTP.
+      const { data, error } =
+        await supabase.auth.signInAnonymously({
           options: {
-            data: { display_name: name.trim() },
+            data: {
+              full_name: cleanName,
+              display_name: cleanName,
+              phone_number: normalizedPhone,
+            },
           },
         });
 
-        if (error) throw error;
+      if (error) throw error;
 
-        if (data.session) {
-          onLogin(data.session.user);
-        } else {
-          setMessage(
-            "Account created! Check your email to confirm your account before logging in."
-          );
-        }
-      } else {
-        const { data, error } =
-          await supabase.auth.signInWithPassword({
-            email: email.trim(),
-            password,
-          });
+      if (!data.session) {
+        throw new Error("Unable to create your session. Please try again.");
+      }
 
-        if (error) throw error;
+      // App.jsx listens for Supabase authentication changes.
+      if (onLogin && data.user) {
         onLogin(data.user);
       }
     } catch (error) {
-      setMessage(error.message || "Something went wrong.");
+      console.error("KICKOFF registration error:", error);
+      setMessage(error.message || "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -55,109 +67,68 @@ export default function Auth({ onLogin }) {
   return (
     <main className="auth-page">
       <section className="auth-card">
-        <button
-          className="auth-brand"
-          onClick={() => window.location.reload()}
-          type="button"
-        >
+        <div className="auth-brand">
           ⚽ KICK<span>OFF</span>
-        </button>
-
-        <div className="auth-label">BENGALURU FOOTBALL COMMUNITY</div>
-
-        <h1>
-          {mode === "login" ? "Welcome back." : "Join the community."}
-        </h1>
-
-        <p className="auth-subtitle">
-          {mode === "login"
-            ? "Your next game is waiting for you."
-            : "Find your squad. Get out there and play."}
-        </p>
-
-        <div className="auth-tabs">
-          <button
-            type="button"
-            className={mode === "login" ? "selected" : ""}
-            onClick={() => {
-              setMode("login");
-              setMessage("");
-            }}
-          >
-            Log in
-          </button>
-          <button
-            type="button"
-            className={mode === "signup" ? "selected" : ""}
-            onClick={() => {
-              setMode("signup");
-              setMessage("");
-            }}
-          >
-            Sign up
-          </button>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          {mode === "signup" && (
-            <label>
-              Your name
-              <input
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                placeholder="Enter your name"
-                minLength={1}
-                maxLength={80}
-                required
-                autoComplete="name"
-              />
-            </label>
-          )}
+        <div className="auth-label">
+          BENGALURU FOOTBALL COMMUNITY
+        </div>
 
+        <h1>Let's get you playing.</h1>
+
+        <p className="auth-subtitle">
+          Join your football community. Find your squad.
+          Get out there and play.
+        </p>
+
+        <form onSubmit={handleSubmit}>
           <label>
-            Email address
+            Your full name
             <input
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="you@example.com"
+              type="text"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="Enter your name"
+              minLength={2}
+              maxLength={80}
               required
-              autoComplete="email"
+              autoComplete="name"
             />
           </label>
 
           <label>
-            Password
+            Mobile number
             <input
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="At least 8 characters"
-              minLength={8}
+              type="tel"
+              value={phone}
+              onChange={(event) => setPhone(event.target.value)}
+              placeholder="+91 98765 43210"
+              maxLength={15}
               required
-              autoComplete={
-                mode === "login" ? "current-password" : "new-password"
-              }
+              autoComplete="tel"
+              inputMode="tel"
             />
           </label>
 
           {message && (
-            <div className="auth-message" role="status">
+            <div className="auth-message" role="alert">
               {message}
             </div>
           )}
 
-          <button className="auth-submit" disabled={loading} type="submit">
-            {loading
-              ? "Please wait..."
-              : mode === "login"
-                ? "Log in to KICKOFF →"
-                : "Create my account →"}
+          <button
+            className="auth-submit"
+            disabled={loading}
+            type="submit"
+          >
+            {loading ? "Joining..." : "Join KICKOFF →"}
           </button>
         </form>
 
         <p className="auth-footer">
-          By continuing, you agree to use KICKOFF respectfully and safely.
+          No email. No password. No OTP.
+          Your mobile number is not verified.
         </p>
       </section>
     </main>

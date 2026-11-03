@@ -1,5 +1,4 @@
-
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 import Auth from "./Auth";
 import Dashboard from "./Dashboard";
@@ -53,7 +52,7 @@ function App() {
   if (checkingSession) {
     return (
       <div className="app-loading">
-        <span>⚽</span>
+        <span>âš½</span>
         <p>Loading KICKOFF...</p>
       </div>
     );
@@ -66,10 +65,12 @@ function App() {
   return (
     <Dashboard
       user={session.user}
+      accessToken={session.access_token}
       onLogout={handleLogout}
     />
   );
 }
 
 export default App;
+
 
