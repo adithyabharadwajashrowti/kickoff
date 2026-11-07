@@ -152,3 +152,19 @@
     font-size: 31px;
   }
 }
+
+.auth-link-button {
+  display: block;
+  margin: 12px auto 0;
+  border: 0;
+  background: transparent;
+  color: #6c766e;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.auth-link-button:disabled {
+  opacity: 0.5;
+}

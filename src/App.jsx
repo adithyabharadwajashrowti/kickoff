@@ -1,11 +1,13 @@
 ﻿import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
-import Auth from "./Auth";
+import Auth, { ResetPassword } from "./Auth";
 import Dashboard from "./Dashboard";
 
 function App() {
   const [session, setSession] = useState(null);
   const [checkingSession, setCheckingSession] = useState(true);
+  // True after a host opens the password-reset link from their email.
+  const [resettingPassword, setResettingPassword] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -27,11 +29,15 @@ function App() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      if (active) {
-        setSession(nextSession);
-        setCheckingSession(false);
+    } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (!active) return;
+
+      if (event === "PASSWORD_RECOVERY") {
+        setResettingPassword(true);
       }
+
+      setSession(nextSession);
+      setCheckingSession(false);
     });
 
     return () => {
@@ -52,10 +58,14 @@ function App() {
   if (checkingSession) {
     return (
       <div className="app-loading">
-        <span>âš½</span>
+        <span>⚽</span>
         <p>Loading KICKOFF...</p>
       </div>
     );
+  }
+
+  if (session && resettingPassword) {
+    return <ResetPassword onDone={() => setResettingPassword(false)} />;
   }
 
   if (!session) {
@@ -72,5 +82,3 @@ function App() {
 }
 
 export default App;
-
-
