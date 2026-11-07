@@ -1,6 +1,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabase";
+import SecureAccount from "./SecureAccount";
 import "./App.css";
 
 const NAV_ITEMS = [
@@ -166,6 +167,9 @@ export default function Dashboard({ user, onLogout }) {
 
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+
+  // Guest accounts cannot be recovered after logout, so they cannot host games.
+  const isGuestAccount = Boolean(user.is_anonymous);
 
   const authFallbackName =
     user.user_metadata?.display_name ||
@@ -542,6 +546,15 @@ export default function Dashboard({ user, onLogout }) {
       return;
     }
 
+    if (
+      isGuestAccount &&
+      !window.confirm(
+        "You're on a guest account. If you log out, you can never get back into it, and your profile and games stay on the old account. Log out anyway?"
+      )
+    ) {
+      return;
+    }
+
     setLoggingOut(true);
     setError("");
     setNotice("");
@@ -562,8 +575,28 @@ export default function Dashboard({ user, onLogout }) {
   // CREATE GAME
   // ------------------------------------------------------------
 
+  function openCreateGame() {
+    if (isGuestAccount) {
+      setShowForm(false);
+      setPage("profile");
+      setError("");
+      setNotice(
+        "To host games, secure your account with an email and password first (see below)."
+      );
+      return false;
+    }
+
+    setShowForm(true);
+    return true;
+  }
+
   async function createGame(event) {
     event.preventDefault();
+
+    if (isGuestAccount) {
+      openCreateGame();
+      return;
+    }
 
     if (!profileComplete) {
       setPage("profile");
@@ -1129,10 +1162,10 @@ export default function Dashboard({ user, onLogout }) {
   // ------------------------------------------------------------
 
   function startFromTemplate(template) {
-    setGameDraftTemplate(template);
     setError("");
     setNotice("");
-    setShowForm(true);
+    if (!openCreateGame()) return;
+    setGameDraftTemplate(template);
   }
 
   async function shareText(textToShare) {
@@ -1544,7 +1577,7 @@ export default function Dashboard({ user, onLogout }) {
           <strong>Game on.</strong>
           <p>Good people. Great football. No excuses.</p>
 
-          <button onClick={() => setShowForm(true)}>
+          <button onClick={openCreateGame}>
             + Create a game
           </button>
         </div>
@@ -1654,7 +1687,7 @@ export default function Dashboard({ user, onLogout }) {
 
                     <button
                       className="outline-button"
-                      onClick={() => setShowForm(true)}
+                      onClick={openCreateGame}
                     >
                       ＋ Organise a match
                     </button>
@@ -1826,7 +1859,7 @@ export default function Dashboard({ user, onLogout }) {
 
                         <button
                           className="lime-button"
-                          onClick={() => setShowForm(true)}
+                          onClick={openCreateGame}
                         >
                           Create the first game ↗
                         </button>
@@ -2045,7 +2078,7 @@ export default function Dashboard({ user, onLogout }) {
 
                 <button
                   className="lime-button"
-                  onClick={() => setShowForm(true)}
+                  onClick={openCreateGame}
                 >
                   ＋ Create game
                 </button>
@@ -2109,7 +2142,7 @@ export default function Dashboard({ user, onLogout }) {
 
                       <button
                         className="lime-button"
-                        onClick={() => setShowForm(true)}
+                        onClick={openCreateGame}
                       >
                         Organise a game ↗
                       </button>
@@ -2678,6 +2711,9 @@ export default function Dashboard({ user, onLogout }) {
                   <small>Meet the players already signed up.</small>
                 </div>
               </div>
+
+              {/* HOST ACCOUNT: guest -> email + password */}
+              <SecureAccount user={user} />
 
               {/* LOGOUT OPTION IS ALSO AVAILABLE HERE */}
               <section className="profile-account-panel">
