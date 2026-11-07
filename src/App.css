@@ -3117,3 +3117,47 @@ textarea:focus-visible {
     transition: none !important;
   }
 }
+
+/* ---------- Host account (SecureAccount.jsx) ---------- */
+.secure-account-panel {
+  align-items: flex-start;
+}
+
+.secure-account-copy {
+  width: 100%;
+}
+
+.secure-account-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.secure-account-form input {
+  flex: 1 1 200px;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid #493833;
+  border-radius: 8px;
+  background: #15130f;
+  color: #f2eee9;
+  font-size: 12px;
+}
+
+.secure-account-link {
+  border: 0;
+  background: transparent;
+  color: #c5b9b2;
+  font-size: 11px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.secure-account-copy small.secure-account-ok {
+  color: var(--lime);
+}
+
+.secure-account-copy small.secure-account-error {
+  color: #ffb3a6;
+}
