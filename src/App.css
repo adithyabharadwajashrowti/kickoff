@@ -3161,3 +3161,242 @@ textarea:focus-visible {
 .secure-account-copy small.secure-account-error {
   color: #ffb3a6;
 }
+
+/* ---------- Host role choice (create game form) ---------- */
+.host-role-choice {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 0 0 15px;
+  padding: 0;
+  border: 0;
+}
+
+.host-role-choice legend {
+  margin-bottom: 7px;
+  color: #cbd2c3;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.game-form label.host-role-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid #3a4234;
+  border-radius: 8px;
+  background: #11140f;
+  cursor: pointer;
+}
+
+.game-form label.host-role-option:has(input:checked) {
+  border-color: var(--lime);
+  background: #1a2210;
+}
+
+.game-form .host-role-option input {
+  width: auto;
+  margin: 2px 0 0;
+  padding: 0;
+  accent-color: var(--lime);
+}
+
+.host-role-option span {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.host-role-option strong {
+  color: #f5f7f3;
+  font-size: 12px;
+}
+
+.host-role-option small {
+  color: #8f9888;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+@media (max-width: 520px) {
+  .host-role-choice {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Shared game link highlight ---------- */
+.game-card.focused-game {
+  outline: 2px solid var(--lime);
+  outline-offset: 3px;
+  box-shadow: 0 0 22px #c7ff4533;
+}
+
+/* ---------- Friends' names (payment form) ---------- */
+.friend-entries {
+  margin: -4px 0 15px;
+  padding: 12px;
+  border: 1px solid #3a4234;
+  border-radius: 8px;
+  background: #151a11;
+}
+
+.friend-entries-title {
+  margin-bottom: 8px;
+  color: #cbd2c3;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.friend-entries-title small {
+  color: #8f9888;
+  font-weight: 500;
+}
+
+.friend-entry-row {
+  display: grid;
+  grid-template-columns: 1fr 130px;
+  gap: 8px;
+}
+
+.friend-entry-row + .friend-entry-row {
+  margin-top: 8px;
+}
+
+.game-form .friend-entry-row input,
+.game-form .friend-entry-row select {
+  margin-top: 0;
+}
+
+/* ---------- Host: remove a guest from the roster ---------- */
+.balanced-team-player {
+  position: relative;
+}
+
+.guest-remove-button {
+  position: absolute;
+  top: 0;
+  right: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  opacity: 0.6;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.guest-remove-button:hover {
+  opacity: 1;
+}
+
+/* ---------- Rate-the-players banner and form ---------- */
+.rate-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding: 16px 18px;
+  border: 1px solid #4b6a17;
+  border-radius: 12px;
+  background: linear-gradient(110deg, #1d2a10, #151a11);
+}
+
+.rate-banner > div {
+  display: grid;
+  gap: 4px;
+  text-align: left;
+}
+
+.rate-banner strong {
+  color: #f5f7f3;
+  font-size: 14px;
+}
+
+.rate-banner span {
+  color: #a9b3a0;
+  font-size: 11px;
+}
+
+.rate-banner .lime-button {
+  flex-shrink: 0;
+  padding: 11px 16px;
+  border-radius: 8px;
+  font-weight: 800;
+}
+
+.rating-list {
+  display: grid;
+  gap: 8px;
+  max-height: 50vh;
+  margin-bottom: 15px;
+  overflow-y: auto;
+}
+
+.rating-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 10px;
+  border: 1px solid #3a4234;
+  border-radius: 8px;
+  background: #11140f;
+}
+
+.rating-name {
+  min-width: 0;
+  overflow: hidden;
+  color: #f5f7f3;
+  font-size: 12px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rating-stars {
+  display: flex;
+  flex-shrink: 0;
+  gap: 4px;
+}
+
+.rating-star {
+  width: 30px;
+  height: 30px;
+  border: 1px solid #3a4234;
+  border-radius: 6px;
+  background: #1a1f15;
+  color: #a9b3a0;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.rating-star.on {
+  border-color: var(--lime);
+  background: var(--lime);
+  color: #11150d;
+}
+
+.my-rating-panel h2 {
+  color: var(--lime) !important;
+}
+
+@media (max-width: 520px) {
+  .rate-banner {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .friend-entry-row {
+    grid-template-columns: 1fr 110px;
+  }
+
+  .rating-star {
+    width: 26px;
+    height: 26px;
+  }
+}

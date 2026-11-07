@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KICKOFF Match Rotation</title>
+<style>
+  :root {
+    --bg: #12110f;
+    --card: #1c1a17;
+    --line: #34302b;
+    --text: #f2eee9;
+    --muted: #9c938b;
+    --lime: #c7ff45;
+    --red: #ff8f7e;
+    --black-team: #0b0b0b;
+    --white-team: #f4f1ea;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  body { padding: 14px 14px 80px; max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 4px 0 2px; letter-spacing: .5px; }
+  h1 span { color: var(--lime); }
+  h2 { font-size: 15px; margin: 0 0 10px; }
+  p { margin: 0; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+  .tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+    position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 8px 0; }
+  .tabs button { padding: 12px 6px; border-radius: 10px; border: 1px solid var(--line);
+    background: var(--card); color: var(--muted); font-weight: 700; font-size: 14px; }
+  .tabs button.on { background: var(--lime); color: #111; border-color: var(--lime); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 14px; margin-bottom: 12px; }
+  label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  textarea, input, select { width: 100%; background: #0f0e0c; color: var(--text);
+    border: 1px solid var(--line); border-radius: 9px; padding: 10px; font-size: 15px; }
+  textarea { min-height: 150px; font-family: inherit; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .btn { border: 0; border-radius: 10px; padding: 12px 14px; font-weight: 800;
+    font-size: 15px; background: var(--lime); color: #111; cursor: pointer; }
+  .btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
+  .btn.warn { background: #3a201c; color: var(--red); border: 1px solid #6b352d; }
+  .btn.big { width: 100%; padding: 16px; font-size: 17px; }
+  .btn:disabled { opacity: .4; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+  .plist { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+  .prow { display: grid; grid-template-columns: 1fr 112px 54px 36px; gap: 6px; align-items: center; }
+  .prow input, .prow select { padding: 8px; font-size: 14px; }
+  .gk { border-radius: 8px; border: 1px solid var(--line); background: transparent;
+    color: var(--muted); padding: 8px 0; font-weight: 800; font-size: 13px; }
+  .gk.on { background: #2b3a12; color: var(--lime); border-color: #4b6a17; }
+  .x { border: 0; background: transparent; color: var(--muted); font-size: 20px; }
+  .teams { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .team { border-radius: 14px; padding: 12px; border: 1px solid var(--line); }
+  .team.B { background: var(--black-team); color: #fff; }
+  .team.W { background: var(--white-team); color: #111; }
+  .team h3 { margin: 0 0 2px; font-size: 16px; }
+  .team .meta { font-size: 12px; opacity: .7; margin-bottom: 8px; }
+  .chip { display: flex; justify-content: space-between; align-items: center; gap: 6px;
+    padding: 7px 8px; border-radius: 8px; margin-bottom: 4px; font-size: 14px; }
+  .team.B .chip { background: #1d1d1d; }
+  .team.W .chip { background: #e4dfd4; }
+  .chip small { opacity: .65; font-size: 11px; white-space: nowrap; }
+  .chip .mv { border: 0; background: transparent; color: inherit; font-size: 16px; padding: 0 2px; }
+  .chip.bench { opacity: .55; font-style: italic; }
+  .chip.in { outline: 2px solid var(--lime); }
+  .clock { text-align: center; padding: 18px 10px; }
+  .clock .t { font-size: 54px; font-weight: 900; font-variant-numeric: tabular-nums; line-height: 1; }
+  .clock .n { margin-top: 8px; font-size: 15px; color: var(--muted); }
+  .clock .n b { color: var(--lime); font-size: 22px; font-variant-numeric: tabular-nums; }
+  .banner { display: none; background: var(--lime); color: #111; border-radius: 14px;
+    padding: 14px; margin-bottom: 12px; font-weight: 700; font-size: 15px; line-height: 1.6; }
+  .banner.show { display: block; animation: pulse 1s ease-in-out 3; }
+  @keyframes pulse { 50% { transform: scale(1.02); } }
+  .changes { font-size: 14px; line-height: 1.7; }
+  .changes .off { color: var(--red); }
+  .changes .onp { color: var(--lime); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 7px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  .ok { color: var(--lime); }
+  .bad { color: var(--red); }
+  .hide { display: none !important; }
+  .back { display: inline-block; color: var(--muted); font-size: 13px;
+    text-decoration: none; margin-bottom: 6px; }
+  .toast { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
+    background: #000; color: #fff; border: 1px solid var(--line); padding: 10px 14px;
+    border-radius: 10px; font-size: 14px; display: none; z-index: 20; }
+  .modal { position: fixed; inset: 0; background: rgba(0,0,0,.7); display: none;
+    align-items: center; justify-content: center; padding: 16px; z-index: 30; }
+  .modal.show { display: flex; }
+  .modal .card { max-width: 420px; width: 100%; }
+  @media (max-width: 520px) {
+    .teams { grid-template-columns: 1fr; }
+    .prow { grid-template-columns: 1fr 100px 48px 30px; }
+  }
+</style>
+</head>
+<body>
+  <a href="/" class="back">← Back to KICKOFF</a>
+  <h1>⚽ KICK<span>OFF</span> · Match Rotation</h1>
+  <p class="sub">Balanced Black vs White, playing XI + subs, fair rotation on a timer.</p>
+
+  <div class="card hide" id="importCard">
+    <h2 id="importTitle"></h2>
+    <p class="hint" id="importInfo"></p>
+    <div class="row" style="margin-top:10px">
+      <button class="btn" id="importYes">Load these players</button>
+      <button class="btn ghost" id="importNo">Dismiss</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button data-tab="players" class="on">1. Players</button>
+    <button data-tab="teams">2. Teams</button>
+    <button data-tab="live">3. Live match</button>
+  </div>
+
+  <!-- ================= PLAYERS ================= -->
+  <section id="tab-players">
+    <div class="card">
+      <h2>Paste your player list</h2>
+      <label for="bulk">One player per line: <b>Name, level, GK</b> (level and GK optional)</label>
+      <textarea id="bulk" placeholder="Rahul, Amateur, GK
+Kiran, Pro
+Arjun, Intermediate
+Sneha, Beginner
+Vikram"></textarea>
+      <p class="hint">Levels: Beginner (1), Intermediate (2), Amateur (3), Professional (4). Short forms like B / I / A / P or 1–4 work. No level = Intermediate. Add “GK” to mark a goalkeeper.</p>
+      <div class="row" style="margin-top:10px">
+        <button class="btn" id="addBulk">Add players</button>
+        <button class="btn ghost" id="clearAll">Clear all</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Players (<span id="pcount">0</span>)</h2>
+      <div class="plist" id="plist"></div>
+      <p class="hint" id="pEmpty">No players yet.</p>
+    </div>
+
+    <div class="card">
+      <h2>Match settings</h2>
+      <div class="grid3">
+        <div><label for="sDur">Match length (min)</label><input id="sDur" type="number" min="5" max="180" step="5"></div>
+        <div><label for="sInt">Change every (min)</label><input id="sInt" type="number" min="1" max="30" step="1"></div>
+        <div><label for="sField">Players on field</label><input id="sField" type="number" min="3" max="11" step="1"></div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <input id="sGK" type="checkbox" style="width:auto">
+        <label for="sGK" style="margin:0;color:var(--text)">Rotate goalkeepers too (otherwise keepers stay in goal)</label>
+      </div>
+    </div>
+
+    <button class="btn big" id="toTeams">Make balanced teams →</button>
+  </section>
+
+  <!-- ================= TEAMS ================= -->
+  <section id="tab-teams" class="hide">
+    <div class="card">
+      <h2>Balanced teams</h2>
+      <p class="hint" id="balanceInfo"></p>
+      <div class="row" style="margin-top:10px; flex-wrap:wrap">
+        <button class="btn ghost" id="reshuffle">🔀 Reshuffle</button>
+        <button class="btn ghost" id="copyTeams">Copy for WhatsApp</button>
+      </div>
+      <p class="hint">Tap ⇄ to move a player to the other team.</p>
+    </div>
+    <div class="teams" id="teamsView"></div>
+
+    <div class="card" style="margin-top:12px">
+      <h2>Rotation plan</h2>
+      <div id="planView"></div>
+    </div>
+
+    <button class="btn big" id="toLive">Go to live match →</button>
+  </section>
+
+  <!-- ================= LIVE ================= -->
+  <section id="tab-live" class="hide">
+    <div class="banner" id="banner"></div>
+
+    <div class="card clock">
+      <div class="t" id="clock">00:00</div>
+      <div class="n" id="nextInfo">Press Start at kick-off</div>
+    </div>
+
+    <div class="row" style="margin-bottom:12px">
+      <button class="btn big" id="startBtn">▶ Start</button>
+      <button class="btn big ghost hide" id="pauseBtn">⏸ Pause</button>
+    </div>
+
+    <div class="card">
+      <h2>Coming up next</h2>
+      <div class="changes" id="nextChanges"></div>
+    </div>
+
+    <div class="teams" id="liveTeams"></div>
+
+    <div class="card" style="margin-top:12px">
+      <h2>During the match</h2>
+      <div class="row" style="flex-wrap:wrap">
+        <button class="btn ghost" id="injBtn">🩹 Player off / left</button>
+        <button class="btn ghost" id="lateBtn">➕ Late arrival</button>
+      </div>
+      <p class="hint">Changes apply now. Whoever has played least comes on.</p>
+    </div>
+
+    <div class="card">
+      <h2>Playing time</h2>
+      <div id="minutesView"></div>
+    </div>
+
+    <button class="btn warn big" id="resetMatch">Reset match timer</button>
+  </section>
+
+  <!-- modal -->
+  <div class="modal" id="modal">
+    <div class="card">
+      <h2 id="mTitle"></h2>
+      <div id="mBody"></div>
+      <div class="row" style="margin-top:12px; justify-content:flex-end">
+        <button class="btn ghost" id="mCancel">Cancel</button>
+        <button class="btn" id="mOk">OK</button>
+      </div>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  const LEVELS = ["", "Beginner", "Intermediate", "Amateur", "Professional"];
+  const KEY = "kickoff-rotation-v1";
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  // ---------------- state ----------------
+  let state = {
+    players: [],            // {id, name, skill, gk, team: 'auto'|'B'|'W', active}
+    settings: { duration: 60, interval: 5, field: 11, rotateGK: false },
+    seed: 1,
+    match: null,            // {startedAt, pausedAt, pausedTotal, locked:{B:[], W:[]}, alerted}
+    frozenTeams: null       // {B:[ids], W:[ids]} once the match starts
+  };
+  let nextId = 1;
+
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+  }
+  function load() {
+    try {
+      const raw = localStorage.getItem(KEY);
+      if (raw) {
+        const s = JSON.parse(raw);
+        if (s && Array.isArray(s.players)) state = Object.assign(state, s);
+      }
+    } catch (e) {}
+    nextId = state.players.reduce((m, p) => Math.max(m, p.id), 0) + 1;
+  }
+
+  const byId = (id) => state.players.find((p) => p.id === id);
+  const nameOf = (id) => (byId(id) || { name: "?" }).name;
+
+  function toast(msg) {
+    const t = $("toast"); t.textContent = msg; t.style.display = "block";
+    clearTimeout(toast._t); toast._t = setTimeout(() => (t.style.display = "none"), 2200);
+  }
+
+  // ---------------- parsing ----------------
+  function parseLevel(tok) {
+    const t = tok.trim().toLowerCase();
+    if (!t) return null;
+    if (/^(1|b|beg|beginner)$/.test(t)) return 1;
+    if (/^(2|i|int|inter|intermediate)$/.test(t)) return 2;
+    if (/^(3|a|am|ama|amateur)$/.test(t)) return 3;
+    if (/^(4|p|pro|professional)$/.test(t)) return 4;
+    return null;
+  }
+  function parseLine(line) {
+    const parts = line.split(/[,\t;|]/).map((s) => s.trim()).filter(Boolean);
+    if (!parts.length) return null;
+    let gk = false, skill = 2;
+    const name = parts[0].replace(/\s*\(?\bgk\b\)?\s*$/i, (m) => { gk = true; return ""; }).trim();
+    for (const p of parts.slice(1)) {
+      if (/^(gk|goalkeeper|keeper|goalie)$/i.test(p)) gk = true;
+      else { const l = parseLevel(p); if (l) skill = l; }
+    }
+    if (!name) return null;
+    return { name: name.slice(0, 40), skill, gk };
+  }
+
+  // ---------------- team balancing ----------------
+  function rng(seed) { // mulberry32
+    return function () {
+      seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function balance() {
+    const active = state.players.filter((p) => p.active);
+    const n = active.length;
+    const cap = { B: Math.ceil(n / 2), W: Math.ceil(n / 2) };
+    const T = { B: [], W: [] }, sum = { B: 0, W: 0 };
+    const put = (p, t) => { T[t].push(p.id); sum[t] += p.skill; };
+
+    // 1. players pinned to a team
+    active.filter((p) => p.team !== "auto").forEach((p) => put(p, p.team));
+
+    const rand = rng(state.seed);
+    const free = active.filter((p) => p.team === "auto")
+      .map((p) => ({ p, r: rand() }))
+      .sort((a, b) => b.p.skill - a.p.skill || a.r - b.r)
+      .map((x) => x.p);
+
+    const pick = () => {
+      if (T.B.length >= cap.B) return "W";
+      if (T.W.length >= cap.W) return "B";
+      if (sum.B !== sum.W) return sum.B < sum.W ? "B" : "W";
+      return T.B.length <= T.W.length ? "B" : "W";
+    };
+
+    // 2. one keeper per team first (if keepers stay in goal)
+    const keepers = free.filter((p) => p.gk);
+    const rest = free.filter((p) => !p.gk);
+    const hasGK = (t) => T[t].some((id) => byId(id).gk);
+    const extraKeepers = [];
+    for (const k of keepers) {
+      const need = ["B", "W"].filter((t) => !hasGK(t) && T[t].length < cap[t]);
+      if (need.length) {
+        const t = need.length === 2 ? (sum.B <= sum.W ? "B" : "W") : need[0];
+        put(k, t);
+      } else extraKeepers.push(k);
+    }
+    // 3. everyone else: strongest first, to the weaker team
+    for (const p of [...rest, ...extraKeepers].sort((a, b) => b.skill - a.skill)) put(p, pick());
+
+    // keep the original free order within each team for stable display
+    return T;
+  }
+
+  function currentTeams() {
+    return state.frozenTeams || balance();
+  }
+
+  // ---------------- rotation planning ----------------
+  function slotLengths() {
+    const { duration, interval } = state.settings;
+    const L = [];
+    for (let t = 0; t < duration - 1e-9; t += interval) L.push(Math.min(interval, duration - t));
+    return L;
+  }
+
+  // Builds the field list for every slot. prefix = slots already played (locked).
+  function plan(teamIds, prefix) {
+    const L = slotLengths();
+    const F = state.settings.field;
+    const avail = teamIds.filter((id) => byId(id) && byId(id).active);
+    const availSet = new Set(avail);
+    const order = new Map(avail.map((id, i) => [id, i]));
+    const fixedGK = state.settings.rotateGK ? null
+      : (avail.find((id) => byId(id).gk) ?? null);
+
+    const minutes = {}, lastOff = {};
+    avail.forEach((id) => { minutes[id] = 0; lastOff[id] = -1; });
+    // minutes from locked slots also count for players no longer available
+    const slots = [];
+    let prev = null;
+
+    for (let s = 0; s < L.length; s++) {
+      let field;
+      if (s < prefix.length) {
+        field = prefix[s].slice();
+      } else {
+        const cap = Math.min(F, avail.length);
+        if (!prev) {
+          field = [];
+          if (fixedGK != null) field.push(fixedGK);
+          for (const id of avail) if (field.length < cap && !field.includes(id)) field.push(id);
+        } else {
+          field = prev.filter((id) => availSet.has(id));
+          if (fixedGK != null && !field.includes(fixedGK)) field.unshift(fixedGK);
+          const benchOf = () => avail.filter((id) => !field.includes(id));
+          const mins = (id) => minutes[id] || 0;
+          const outfield = () => field.filter((id) => id !== fixedGK);
+
+          // too many on (e.g. field size lowered)
+          while (field.length > cap) {
+            const o = outfield().sort((a, b) => mins(b) - mins(a) || order.get(a) - order.get(b))[0];
+            field = field.filter((id) => id !== o); lastOff[o] = s;
+          }
+          // fill holes (injury / left)
+          while (field.length < cap) {
+            const b = benchOf().sort((a, b2) => mins(a) - mins(b2) || lastOff[a] - lastOff[b2] || order.get(a) - order.get(b2))[0];
+            if (b == null) break;
+            field.push(b);
+          }
+          // fairness swaps: least-played bench player replaces most-played field player
+          const bench = benchOf().sort((a, b2) => mins(a) - mins(b2) || lastOff[a] - lastOff[b2] || order.get(a) - order.get(b2));
+          const outs = outfield().sort((a, b2) => mins(b2) - mins(a) || order.get(a) - order.get(b2));
+          for (let i = 0; i < Math.min(bench.length, outs.length); i++) {
+            if (mins(bench[i]) < mins(outs[i]) - 1e-9) {
+              field[field.indexOf(outs[i])] = bench[i];
+              lastOff[outs[i]] = s;
+            } else break;
+          }
+        }
+      }
+      for (const id of field) minutes[id] = (minutes[id] || 0) + L[s];
+      slots.push(field);
+      prev = field;
+    }
+    return { slots, minutes, L, fixedGK, avail };
+  }
+
+  function fullPlan() {
+    const T = currentTeams();
+    const locked = state.match ? state.match.locked : { B: [], W: [] };
+    return { B: plan(T.B, locked.B || []), W: plan(T.W, locked.W || []), T };
+  }
+
+  function diff(a, b) {
+    const A = new Set(a || []), B = new Set(b || []);
+    return { off: (a || []).filter((x) => !B.has(x)), on: (b || []).filter((x) => !A.has(x)) };
+  }
+
+  const fmt = (mins) => {
+    const s = Math.max(0, Math.round(mins * 60));
+    return String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
+  };
+
+  // ---------------- live clock ----------------
+  function elapsedMin() {
+    const m = state.match;
+    if (!m || !m.startedAt) return 0;
+    const now = m.pausedAt || Date.now();
+    return (now - m.startedAt - (m.pausedTotal || 0)) / 60000;
+  }
+  function slotAt(mins) {
+    const L = slotLengths();
+    let t = 0;
+    for (let i = 0; i < L.length; i++) { if (mins < t + L[i]) return i; t += L[i]; }
+    return L.length; // full time
+  }
+  function slotStart(i) {
+    return slotLengths().slice(0, i).reduce((a, b) => a + b, 0);
+  }
+
+  // lock lineups up to and including the current slot
+  function lockUpTo(slot) {
+    const P = fullPlan();
+    for (const t of ["B", "W"]) {
+      const want = Math.min(slot + 1, P[t].slots.length);
+      state.match.locked[t] = P[t].slots.slice(0, want);
+    }
+  }
+
+  // re-plan the current slot (after an injury / late arrival)
+  function replanNow() {
+    if (!state.match || !state.match.startedAt) { render(); save(); return; }
+    const cur = slotAt(elapsedMin());
+    for (const t of ["B", "W"]) state.match.locked[t] = state.match.locked[t].slice(0, cur);
+    lockUpTo(cur);
+    save(); render();
+  }
+
+  let audioCtx = null;
+  function beep() {
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      const now = audioCtx.currentTime;
+      [0, 0.35, 0.7].forEach((d) => {
+        const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+        o.frequency.value = 880; o.connect(g); g.connect(audioCtx.destination);
+        g.gain.setValueAtTime(0.0001, now + d);
+        g.gain.exponentialRampToValueAtTime(0.5, now + d + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + d + 0.25);
+        o.start(now + d); o.stop(now + d + 0.3);
+      });
+    } catch (e) {}
+    try { navigator.vibrate && navigator.vibrate([300, 150, 300, 150, 300]); } catch (e) {}
+  }
+
+  let wakeLock = null;
+  async function keepAwake() {
+    try { if ("wakeLock" in navigator) wakeLock = await navigator.wakeLock.request("screen"); } catch (e) {}
+  }
+
+  function changeText(P, slot) {
+    const lines = [];
+    for (const t of ["B", "W"]) {
+      const d = diff(P[t].slots[slot - 1], P[t].slots[slot]);
+      if (!d.off.length && !d.on.length) continue;
+      const label = t === "B" ? "⚫ BLACK" : "⚪ WHITE";
+      lines.push(`${label}: OFF ${d.off.map(nameOf).join(", ") || "—"} → ON ${d.on.map(nameOf).join(", ") || "—"}`);
+    }
+    return lines;
+  }
+
+  function tick() {
+    if (!state.match || !state.match.startedAt) return;
+    const L = slotLengths();
+    const total = L.reduce((a, b) => a + b, 0);
+    const el = elapsedMin();
+    const cur = slotAt(el);
+
+    $("clock").textContent = fmt(Math.min(el, total));
+
+    if (cur >= L.length) {
+      $("nextInfo").innerHTML = "<b>FULL TIME</b>";
+    } else if (cur + 1 < L.length) {
+      $("nextInfo").innerHTML = `Next change in <b>${fmt(slotStart(cur + 1) - el)}</b>`;
+    } else {
+      $("nextInfo").innerHTML = `Final block · full time in <b>${fmt(total - el)}</b>`;
+    }
+
+    if (!state.match.pausedAt && cur < L.length && cur > (state.match.alerted ?? 0)) {
+      lockUpTo(cur);
+      const P = fullPlan();
+      const lines = changeText(P, cur);
+      state.match.alerted = cur;
+      save();
+      if (lines.length) {
+        const b = $("banner");
+        b.innerHTML = "🔔 SUBSTITUTIONS NOW<br>" + lines.map(esc).join("<br>");
+        b.classList.remove("show"); void b.offsetWidth; b.classList.add("show");
+        beep();
+      }
+      render();
+    }
+  }
+
+  // ---------------- rendering ----------------
+  function renderPlayers() {
+    const list = $("plist");
+    $("pcount").textContent = state.players.filter((p) => p.active).length;
+    $("pEmpty").classList.toggle("hide", state.players.length > 0);
+    list.innerHTML = state.players.map((p) => `
+      <div class="prow" data-id="${p.id}">
+        <input value="${esc(p.name)}" data-f="name" aria-label="Name">
+        <select data-f="skill" aria-label="Level">
+          ${[1, 2, 3, 4].map((l) => `<option value="${l}" ${p.skill === l ? "selected" : ""}>${LEVELS[l]}</option>`).join("")}
+        </select>
+        <button class="gk ${p.gk ? "on" : ""}" data-f="gk" title="Goalkeeper">GK</button>
+        <button class="x" data-f="del" title="Remove">×</button>
+      </div>`).join("");
+    const s = state.settings;
+    $("sDur").value = s.duration; $("sInt").value = s.interval;
+    $("sField").value = s.field; $("sGK").checked = s.rotateGK;
+  }
+
+  function teamCard(t, ids, opts) {
+    const total = ids.reduce((a, id) => a + (byId(id)?.skill || 0), 0);
+    const title = t === "B" ? "⚫ Black" : "⚪ White";
+    const { field, minutes, fixedGK, upNext, movable } = opts;
+    const onSet = new Set(field || ids);
+    const ordered = field ? [...field, ...ids.filter((id) => !onSet.has(id))] : ids;
+    return `<div class="team ${t}">
+      <h3>${title}</h3>
+      <div class="meta">${ids.length} players · skill total ${total}${field ? ` · ${field.length} on, ${ids.length - field.length} sub` : ""}</div>
+      ${ordered.map((id) => {
+        const p = byId(id); if (!p) return "";
+        const bench = field && !onSet.has(id);
+        const tag = [
+          id === fixedGK ? "GK" : (p.gk ? "gk" : ""),
+          LEVELS[p.skill].slice(0, 3),
+          minutes ? Math.round(minutes[id] || 0) + "′" : ""
+        ].filter(Boolean).join(" · ");
+        return `<div class="chip ${bench ? "bench" : ""} ${upNext && upNext.has(id) ? "in" : ""}">
+          <span>${bench ? "🪑 " : ""}${esc(p.name)}${!p.active ? " (out)" : ""}</span>
+          <span><small>${tag}</small>${movable ? ` <button class="mv" data-move="${id}" title="Move to other team">⇄</button>` : ""}</span>
+        </div>`;
+      }).join("")}
+    </div>`;
+  }
+
+  function renderTeams() {
+    const P = fullPlan();
+    const T = P.T;
+    const sB = T.B.reduce((a, id) => a + byId(id).skill, 0);
+    const sW = T.W.reduce((a, id) => a + byId(id).skill, 0);
+    const field = state.settings.field;
+    $("balanceInfo").innerHTML =
+      `Black <b>${T.B.length}</b> players (skill ${sB}) vs White <b>${T.W.length}</b> (skill ${sW}). ` +
+      `${field} on the field each, ${Math.max(0, T.B.length - field)} / ${Math.max(0, T.W.length - field)} subs.` +
+      (state.frozenTeams ? " <b>Teams are locked because the match has started.</b>" : "");
+    $("teamsView").innerHTML =
+      teamCard("B", T.B, { fixedGK: P.B.fixedGK, movable: !state.frozenTeams }) +
+      teamCard("W", T.W, { fixedGK: P.W.fixedGK, movable: !state.frozenTeams });
+    $("reshuffle").disabled = !!state.frozenTeams;
+
+    // plan table
+    const L = P.B.L;
+    let t = 0, rows = "";
+    for (let s = 0; s < L.length; s++) {
+      const cells = ["B", "W"].map((k) => {
+        if (s === 0) return `<span class="hint">Starting ${P[k].slots[0].length}</span>`;
+        const d = diff(P[k].slots[s - 1], P[k].slots[s]);
+        if (!d.off.length) return `<span class="hint">no change</span>`;
+        return `<span class="off">↓ ${d.off.map((x) => esc(nameOf(x))).join(", ")}</span><br><span class="onp">↑ ${d.on.map((x) => esc(nameOf(x))).join(", ")}</span>`;
+      });
+      rows += `<tr><td>${fmt(t)}</td><td>${cells[0]}</td><td>${cells[1]}</td></tr>`;
+      t += L[s];
+    }
+    const spread = (k) => {
+      const v = P[k].avail.map((id) => P[k].minutes[id] || 0).filter((m, i) => P[k].avail[i] !== P[k].fixedGK);
+      if (!v.length) return "";
+      return `${Math.round(Math.min(...v))}–${Math.round(Math.max(...v))} min`;
+    };
+    $("planView").innerHTML = `
+      <p class="hint" style="margin-bottom:8px">Outfield playing time: Black ${spread("B")}, White ${spread("W")}. Keepers who stay in goal play the full match.</p>
+      <table><tr><th>Time</th><th>⚫ Black</th><th>⚪ White</th></tr>${rows}</table>`;
+  }
+
+  function renderLive() {
+    const P = fullPlan();
+    const m = state.match;
+    const started = !!(m && m.startedAt);
+    const L = P.B.L;
+    const cur = started ? Math.min(slotAt(elapsedMin()), L.length - 1) : 0;
+
+    $("startBtn").textContent = !started ? "▶ Start" : (m.pausedAt ? "▶ Resume" : "▶ Running");
+    $("startBtn").disabled = started && !m.pausedAt;
+    $("pauseBtn").classList.toggle("hide", !started || !!m.pausedAt);
+    if (!started) { $("clock").textContent = "00:00"; $("nextInfo").textContent = "Press Start at kick-off"; }
+
+    const nextSlot = cur + 1 < L.length ? cur + 1 : null;
+    const upNext = { B: new Set(), W: new Set() };
+    let html = "";
+    if (nextSlot == null) html = `<span class="hint">No more changes. Last block.</span>`;
+    else {
+      for (const t of ["B", "W"]) {
+        const d = diff(P[t].slots[cur], P[t].slots[nextSlot]);
+        d.on.forEach((id) => upNext[t].add(id));
+        const label = t === "B" ? "⚫ Black" : "⚪ White";
+        html += `<div><b>${label}</b> at ${fmt(slotStart(nextSlot))}: ` +
+          (d.off.length
+            ? `<span class="off">OFF ${d.off.map((x) => esc(nameOf(x))).join(", ")}</span> → <span class="onp">ON ${d.on.map((x) => esc(nameOf(x))).join(", ")}</span>`
+            : `<span class="hint">no change</span>`) + `</div>`;
+      }
+    }
+    $("nextChanges").innerHTML = html;
+
+    // minutes so far (locked slots fully counted up to now)
+    const el = started ? elapsedMin() : 0;
+    const playedSoFar = (k) => {
+      const res = {};
+      let t = 0;
+      P[k].slots.forEach((f, s) => {
+        const part = Math.max(0, Math.min(L[s], el - t));
+        f.forEach((id) => (res[id] = (res[id] || 0) + part));
+        t += L[s];
+      });
+      return res;
+    };
+    const mB = playedSoFar("B"), mW = playedSoFar("W");
+
+    $("liveTeams").innerHTML =
+      teamCard("B", P.T.B, { field: P.B.slots[cur], minutes: mB, fixedGK: P.B.fixedGK, upNext: upNext.B }) +
+      teamCard("W", P.T.W, { field: P.W.slots[cur], minutes: mW, fixedGK: P.W.fixedGK, upNext: upNext.W });
+
+    const tbl = (k, mins, planned) => P.T[k].map((id) => {
+      const p = byId(id);
+      return `<tr><td>${k === "B" ? "⚫" : "⚪"} ${esc(p.name)}${!p.active ? " (out)" : ""}</td><td>${Math.round(mins[id] || 0)}′</td><td>${Math.round(planned[id] || 0)}′</td></tr>`;
+    }).join("");
+    $("minutesView").innerHTML = `<table><tr><th>Player</th><th>Played</th><th>Planned total</th></tr>
+      ${tbl("B", mB, P.B.minutes)}${tbl("W", mW, P.W.minutes)}</table>`;
+  }
+
+  function render() {
+    renderPlayers();
+    if (!$("tab-teams").classList.contains("hide")) renderTeams();
+    if (!$("tab-live").classList.contains("hide")) renderLive();
+  }
+
+  function showTab(name) {
+    document.querySelectorAll(".tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === name));
+    ["players", "teams", "live"].forEach((t) => $("tab-" + t).classList.toggle("hide", t !== name));
+    render(); window.scrollTo(0, 0);
+  }
+
+  // ---------------- modal ----------------
+  function modal(title, bodyHtml, onOk) {
+    $("mTitle").textContent = title; $("mBody").innerHTML = bodyHtml;
+    $("modal").classList.add("show");
+    $("mOk").onclick = () => { if (onOk() !== false) $("modal").classList.remove("show"); };
+    $("mCancel").onclick = () => $("modal").classList.remove("show");
+  }
+
+  // ---------------- events ----------------
+  document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => showTab(b.dataset.tab)));
+
+  $("addBulk").addEventListener("click", () => {
+    const lines = $("bulk").value.split(/\r?\n/);
+    let added = 0;
+    for (const line of lines) {
+      const p = parseLine(line);
+      if (!p) continue;
+      state.players.push({ id: nextId++, name: p.name, skill: p.skill, gk: p.gk, team: "auto", active: true });
+      added++;
+    }
+    $("bulk").value = "";
+    save(); render(); toast(`Added ${added} player${added === 1 ? "" : "s"}`);
+  });
+
+  $("clearAll").addEventListener("click", () => {
+    if (state.match && state.match.startedAt) { toast("Reset the match first"); return; }
+    modal("Clear all players?", "<p class='hint'>This removes everyone from the list.</p>", () => {
+      state.players = []; state.frozenTeams = null; state.match = null; save(); render();
+    });
+  });
+
+  $("plist").addEventListener("input", (e) => {
+    const row = e.target.closest(".prow"); if (!row) return;
+    const p = byId(Number(row.dataset.id));
+    if (e.target.dataset.f === "name") p.name = e.target.value.slice(0, 40);
+    if (e.target.dataset.f === "skill") p.skill = Number(e.target.value);
+    save();
+  });
+  $("plist").addEventListener("click", (e) => {
+    const row = e.target.closest(".prow"); if (!row) return;
+    const id = Number(row.dataset.id);
+    if (e.target.dataset.f === "gk") { byId(id).gk = !byId(id).gk; save(); renderPlayers(); }
+    if (e.target.dataset.f === "del") {
+      if (state.frozenTeams) { toast("Match started. Use “Player off / left” instead"); return; }
+      state.players = state.players.filter((p) => p.id !== id); save(); renderPlayers();
+    }
+  });
+
+  const setNum = (id, key, min, max) => $(id).addEventListener("change", () => {
+    let v = Number($(id).value);
+    if (!Number.isFinite(v)) v = state.settings[key];
+    state.settings[key] = Math.min(max, Math.max(min, Math.round(v)));
+    if (state.match && state.match.startedAt) toast("Settings changed mid-match. Plan updated from now.");
+    save(); renderPlayers();
+    if (state.match && state.match.startedAt) replanNow();
+  });
+  setNum("sDur", "duration", 5, 180);
+  setNum("sInt", "interval", 1, 30);
+  setNum("sField", "field", 3, 11);
+  $("sGK").addEventListener("change", () => { state.settings.rotateGK = $("sGK").checked; save(); replanNow(); });
+
+  $("toTeams").addEventListener("click", () => {
+    if (state.players.filter((p) => p.active).length < 2) { toast("Add at least 2 players"); return; }
+    showTab("teams");
+  });
+  $("reshuffle").addEventListener("click", () => { state.seed = (state.seed * 7919 + 13) % 100000 + 1; save(); renderTeams(); });
+
+  $("teamsView").addEventListener("click", (e) => {
+    const id = Number(e.target.dataset.move); if (!id) return;
+    const T = currentTeams();
+    const p = byId(id);
+    p.team = T.B.includes(id) ? "W" : "B";
+    save(); renderTeams();
+  });
+
+  $("copyTeams").addEventListener("click", async () => {
+    const P = fullPlan();
+    const txt = ["B", "W"].map((k) => {
+      const title = k === "B" ? "⚫ BLACK" : "⚪ WHITE";
+      const start = P[k].slots[0] || [];
+      const subs = P.T[k].filter((id) => !start.includes(id));
+      return `${title}\nStarting: ${start.map(nameOf).join(", ")}\nSubs: ${subs.map(nameOf).join(", ") || "none"}`;
+    }).join("\n\n") + `\n\nSubs rotate every ${state.settings.interval} min so everyone gets equal time ⚽`;
+    try { await navigator.clipboard.writeText(txt); toast("Copied. Paste it in WhatsApp"); }
+    catch (e) { modal("Copy this", `<textarea style="min-height:200px">${esc(txt)}</textarea>`, () => true); }
+  });
+
+  $("toLive").addEventListener("click", () => showTab("live"));
+
+  $("startBtn").addEventListener("click", () => {
+    beep(); // unlocks sound on phones (needs a tap)
+    keepAwake();
+    if (!state.match || !state.match.startedAt) {
+      state.frozenTeams = balance();
+      state.match = { startedAt: Date.now(), pausedAt: null, pausedTotal: 0, locked: { B: [], W: [] }, alerted: 0 };
+      lockUpTo(0);
+    } else if (state.match.pausedAt) {
+      state.match.pausedTotal += Date.now() - state.match.pausedAt;
+      state.match.pausedAt = null;
+    }
+    save(); renderLive();
+  });
+  $("pauseBtn").addEventListener("click", () => {
+    if (state.match && !state.match.pausedAt) { state.match.pausedAt = Date.now(); save(); renderLive(); }
+  });
+  $("resetMatch").addEventListener("click", () => {
+    modal("Reset the match?", "<p class='hint'>The timer and rotation history are cleared. Teams unlock. Players stay.</p>", () => {
+      state.match = null; state.frozenTeams = null;
+      state.players.forEach((p) => (p.active = true));
+      $("banner").classList.remove("show");
+      save(); render();
+    });
+  });
+
+  $("injBtn").addEventListener("click", () => {
+    const P = fullPlan();
+    const opts = [...P.T.B, ...P.T.W].filter((id) => byId(id).active)
+      .map((id) => `<option value="${id}">${P.T.B.includes(id) ? "⚫" : "⚪"} ${esc(nameOf(id))}</option>`).join("");
+    modal("Who is off for the rest of the match?", `<select id="injSel">${opts}</select>`, () => {
+      const id = Number($("injSel").value);
+      byId(id).active = false;
+      toast(`${nameOf(id)} is out. Lineup updated.`);
+      replanNow();
+    });
+  });
+
+  $("lateBtn").addEventListener("click", () => {
+    modal("Late arrival", `
+      <label>Name</label><input id="lateName" maxlength="40">
+      <label style="margin-top:8px">Level</label>
+      <select id="lateLvl">${[1, 2, 3, 4].map((l) => `<option value="${l}" ${l === 2 ? "selected" : ""}>${LEVELS[l]}</option>`).join("")}</select>`, () => {
+      const name = $("lateName").value.trim();
+      if (!name) { toast("Enter a name"); return false; }
+      const p = { id: nextId++, name, skill: Number($("lateLvl").value), gk: false, team: "auto", active: true };
+      state.players.push(p);
+      if (state.frozenTeams) {
+        const T = state.frozenTeams;
+        const cnt = (k) => T[k].filter((id) => byId(id).active).length;
+        const sum = (k) => T[k].reduce((a, id) => a + (byId(id).active ? byId(id).skill : 0), 0);
+        const k = cnt("B") !== cnt("W") ? (cnt("B") < cnt("W") ? "B" : "W") : (sum("B") <= sum("W") ? "B" : "W");
+        T[k].push(p.id);
+        toast(`${name} joins ${k === "B" ? "Black" : "White"}`);
+      }
+      replanNow();
+    });
+  });
+
+  // ---------------- import from a KICKOFF game ----------------
+  const IMPORT_KEY = "kickoff-rotation-import";
+  function checkImport() {
+    let data = null;
+    try { data = JSON.parse(localStorage.getItem(IMPORT_KEY) || "null"); } catch (e) {}
+    if (!data || !Array.isArray(data.players) || !data.players.length) return;
+    if (Date.now() - (data.createdAt || 0) > 24 * 3600 * 1000) {
+      try { localStorage.removeItem(IMPORT_KEY); } catch (e) {}
+      return;
+    }
+    const running = state.match && state.match.startedAt;
+    $("importTitle").textContent = `Load players from “${data.gameTitle || "your game"}”?`;
+    $("importInfo").textContent = running
+      ? "A match is running. Reset the match timer first if you want to load a new roster."
+      : `${data.players.length} players (guest slots included). This replaces the current list.`;
+    $("importYes").disabled = !!running;
+    $("importCard").classList.remove("hide");
+    const done = () => {
+      try { localStorage.removeItem(IMPORT_KEY); } catch (e) {}
+      $("importCard").classList.add("hide");
+    };
+    $("importYes").onclick = () => {
+      state.players = data.players.map((p) => ({
+        id: nextId++, name: String(p.name || "Player").slice(0, 40),
+        skill: [1, 2, 3, 4].includes(p.skill) ? p.skill : 2,
+        gk: !!p.gk, team: "auto", active: true
+      }));
+      state.frozenTeams = null; state.match = null;
+      done(); save(); render();
+      toast(`Loaded ${state.players.length} players`);
+    };
+    $("importNo").onclick = done;
+  }
+
+  // ---------------- boot ----------------
+  load();
+  checkImport();
+  render();
+  setInterval(tick, 250);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && state.match) { keepAwake(); tick(); } });
+})();
+</script>
+</body>
+</html>

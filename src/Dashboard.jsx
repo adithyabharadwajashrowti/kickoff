@@ -1,5 +1,5 @@
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "./supabase";
 import SecureAccount from "./SecureAccount";
 import "./App.css";
@@ -100,6 +100,12 @@ const WEEKLY_RUNS = [
   },
 ];
 
+// UPI ID like name@bank (letters, digits, dot, dash, underscore before @).
+const UPI_ID_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9._-]{1,255}@[a-zA-Z][a-zA-Z0-9]{1,63}$/;
+
+// A UPI UTR / UPI Ref No. is exactly 12 digits.
+const UTR_PATTERN = /^\d{12}$/;
+
 const SKILL_LEVELS = [
   "Beginner",
   "Intermediate",
@@ -116,7 +122,52 @@ const POSITIONS = [
 ];
 
 export default function Dashboard({ user, onLogout }) {
-  const [page, setPage] = useState("home");
+  // A shared link like https://site/?game=<id> opens that game.
+  const [focusGameId, setFocusGameId] = useState(() => {
+    try {
+      return new URLSearchParams(window.location.search).get("game");
+    } catch {
+      return null;
+    }
+  });
+
+  const [page, setPage] = useState(() => (focusGameId ? "games" : "home"));
+  const [editGame, setEditGame] = useState(null);
+  const [editSaving, setEditSaving] = useState(false);
+
+  // Where this player came from (e.g. ?src=playo on a shared link).
+  const [joinSource] = useState(() => {
+    const allowed = ["playo", "whatsapp", "friend"];
+
+    try {
+      const fromUrl = new URLSearchParams(window.location.search).get("src");
+
+      if (allowed.includes(fromUrl)) {
+        localStorage.setItem("kickoff-join-source", fromUrl);
+        return fromUrl;
+      }
+
+      const saved = localStorage.getItem("kickoff-join-source");
+      return allowed.includes(saved) ? saved : "kickoff";
+    } catch {
+      return "kickoff";
+    }
+  });
+
+  // Friends' names when a player books more than one slot.
+  const [friendEntries, setFriendEntries] = useState([]);
+
+  // Host adds a player by hand (e.g. someone who booked on Playo).
+  const [addGuestGame, setAddGuestGame] = useState(null);
+  const [addGuestSaving, setAddGuestSaving] = useState(false);
+  const [removingGuestId, setRemovingGuestId] = useState(null);
+
+  // Post-match ratings.
+  const [gamesToRate, setGamesToRate] = useState([]);
+  const [ratingGame, setRatingGame] = useState(null);
+  const [ratingScores, setRatingScores] = useState({});
+  const [ratingSaving, setRatingSaving] = useState(false);
+  const [myRating, setMyRating] = useState(null);
 
   const [games, setGames] = useState([]);
   const [venues, setVenues] = useState([]);
@@ -176,6 +227,18 @@ export default function Dashboard({ user, onLogout }) {
     user.user_metadata?.full_name ||
     user.email?.split("@")[0] ||
     "";
+
+  // Slots still free in the game the player is paying for.
+  // The database re-checks this (including other players' pending requests).
+  const paymentSlotsLeft = paymentGame
+    ? Math.max(
+        0,
+        Number(paymentGame.max_players || 0) -
+          (participantCounts[paymentGame.id] || 0)
+      )
+    : 0;
+
+  const paymentSlotsMax = Math.max(1, Math.min(50, paymentSlotsLeft));
 
   const displayName =
     playerProfile.full_name?.trim() ||
@@ -238,7 +301,7 @@ export default function Dashboard({ user, onLogout }) {
         supabase
           .from("game_payment_requests")
           .select(
-            "id, game_id, player_id, amount_paise, slots_count, match_skill_level, upi_reference, status, created_at, review_note"
+            "id, game_id, player_id, amount_paise, slots_count, match_skill_level, upi_reference, status, created_at, review_note, source, guest_names"
           )
           .order("created_at", { ascending: false })
           .limit(200),
@@ -246,7 +309,7 @@ export default function Dashboard({ user, onLogout }) {
         supabase
           .from("profiles")
           .select(
-            "id, full_name, skill_level, primary_position, secondary_position, preferred_foot, jersey_number, bio"
+            "id, full_name, skill_level, primary_position, secondary_position, preferred_foot, jersey_number, bio, created_at, updated_at"
           )
           .eq("id", user.id)
           .maybeSingle(),
@@ -272,7 +335,16 @@ export default function Dashboard({ user, onLogout }) {
           bio: loadedProfile.bio || "",
         });
 
-        setProfileSaved(true);
+        // The signup trigger creates a profile with default values.
+        // It only counts as a player card once the player has saved it.
+        setProfileSaved(
+          Boolean(
+            loadedProfile.updated_at &&
+              loadedProfile.created_at &&
+              new Date(loadedProfile.updated_at).getTime() >
+                new Date(loadedProfile.created_at).getTime() + 1000
+          )
+        );
       } else {
         setPlayerProfile({
           full_name: authFallbackName,
@@ -346,7 +418,7 @@ export default function Dashboard({ user, onLogout }) {
         } = await supabase
           .from("game_participants")
           .select(
-            "game_id, player_id, status, slots_count, match_skill_level, team_color"
+            "game_id, player_id, status, slots_count, match_skill_level, team_color, source"
           )
           .in(
             "game_id",
@@ -357,12 +429,37 @@ export default function Dashboard({ user, onLogout }) {
         if (participantError) throw participantError;
 
         const participantRows = participants || [];
+
+        // Friends (named at booking) and players the host added by hand.
+        const { data: guestData, error: guestError } = await supabase
+          .from("game_guests")
+          .select(
+            "id, game_id, kind, brought_by, full_name, skill_level, source, team_color"
+          )
+          .in(
+            "game_id",
+            loadedGames.map((game) => game.id)
+          );
+
+        if (guestError) {
+          console.warn("KICKOFF guests not loaded:", guestError.message);
+        }
+
+        const guestRows = guestError ? [] : guestData || [];
         const counts = {};
 
         for (const participant of participantRows) {
           counts[participant.game_id] =
             (counts[participant.game_id] || 0) +
             Number(participant.slots_count || 1);
+        }
+
+        // Host-added players take a slot too (friends are already
+        // inside their player's slots_count).
+        for (const guest of guestRows) {
+          if (guest.kind === "manual") {
+            counts[guest.game_id] = (counts[guest.game_id] || 0) + 1;
+          }
         }
 
         setParticipantCounts(counts);
@@ -375,8 +472,10 @@ export default function Dashboard({ user, onLogout }) {
           ),
         ];
 
+        let profileRows = [];
+
         if (profileIds.length > 0) {
-          const { data: profileRows, error: rosterError } =
+          const { data: rosterProfiles, error: rosterError } =
             await supabase
               .from("profiles")
               .select(
@@ -386,6 +485,10 @@ export default function Dashboard({ user, onLogout }) {
 
           if (rosterError) throw rosterError;
 
+          profileRows = rosterProfiles || [];
+        }
+
+        {
           const profilesById = Object.fromEntries(
             (profileRows || []).map((profile) => [
               profile.id,
@@ -402,8 +505,18 @@ export default function Dashboard({ user, onLogout }) {
               roster[participant.game_id] = [];
             }
 
+            const namedFriends = guestRows.filter(
+              (guest) =>
+                guest.game_id === participant.game_id &&
+                guest.kind === "friend" &&
+                guest.brought_by === participant.player_id
+            ).length;
+
             roster[participant.game_id].push({
               id: participant.player_id,
+              player_id: participant.player_id,
+              is_guest: false,
+              source: participant.source || "kickoff",
               full_name: profile?.full_name || "Player",
               skill_level:
                 participant.match_skill_level ||
@@ -418,18 +531,75 @@ export default function Dashboard({ user, onLogout }) {
               secondary_position:
                 profile?.secondary_position || "",
               team_color: participant.team_color || null,
-              slots_count: Number(participant.slots_count || 1),
+              // Named friends are listed separately below.
+              slots_count: Math.max(
+                1,
+                Number(participant.slots_count || 1) - namedFriends
+              ),
+            });
+          }
+
+          for (const guest of guestRows) {
+            if (!roster[guest.game_id]) {
+              roster[guest.game_id] = [];
+            }
+
+            const broughtBy = guest.brought_by
+              ? profilesById[guest.brought_by]?.full_name || "a player"
+              : null;
+
+            roster[guest.game_id].push({
+              id: `guest-${guest.id}`,
+              guest_id: guest.id,
+              is_guest: true,
+              guest_kind: guest.kind,
+              source: guest.source || "kickoff",
+              full_name: guest.full_name,
+              skill_level: guest.skill_level,
+              match_skill_level: guest.skill_level,
+              primary_position:
+                guest.kind === "friend"
+                  ? `Friend of ${broughtBy}`
+                  : guest.source === "playo"
+                  ? "Added by host · via Playo"
+                  : "Added by host",
+              secondary_position: "",
+              team_color: guest.team_color || null,
+              slots_count: 1,
             });
           }
 
           setGameRoster(roster);
-        } else {
-          setGameRoster({});
         }
       } else {
         setParticipantCounts({});
         setGameRoster({});
       }
+
+      // Ratings (non-blocking: older databases simply skip this).
+      const [toRateResult, myRatingResult] = await Promise.all([
+        supabase.rpc("games_to_rate"),
+        supabase.rpc("my_rating"),
+      ]);
+
+      setGamesToRate(
+        !toRateResult.error && Array.isArray(toRateResult.data)
+          ? toRateResult.data
+          : []
+      );
+
+      const ratingRow = Array.isArray(myRatingResult.data)
+        ? myRatingResult.data[0]
+        : myRatingResult.data;
+
+      setMyRating(
+        !myRatingResult.error && ratingRow && Number(ratingRow.ratings_count) > 0
+          ? {
+              avg: Number(ratingRow.avg_score),
+              count: Number(ratingRow.ratings_count),
+            }
+          : null
+      );
     } catch (err) {
       console.error("KICKOFF data loading error:", err);
       setError(
@@ -443,6 +613,36 @@ export default function Dashboard({ user, onLogout }) {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Handle a shared game link once the games have loaded.
+  const sharedLinkHandled = useRef(false);
+
+  useEffect(() => {
+    if (!focusGameId || loading || sharedLinkHandled.current) return;
+    sharedLinkHandled.current = true;
+
+    try {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has("game") || url.searchParams.has("src")) {
+        url.searchParams.delete("game");
+        url.searchParams.delete("src");
+        window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+      }
+    } catch {
+      // Ignore browsers that block history changes.
+    }
+
+    if (games.some((game) => game.id === focusGameId)) {
+      setNotice("Here's the game that was shared with you 👇");
+    } else {
+      setNotice(
+        "That shared game is no longer open. It may have started, filled up or been cancelled."
+      );
+      setFocusGameId(null);
+    }
+    // Run once per shared link after loading finishes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
 
   // Remove expired or cancelled games from the visible dashboard.
   useEffect(() => {
@@ -508,9 +708,14 @@ export default function Dashboard({ user, onLogout }) {
           (filter === "Organised by me" &&
             game.organiser_id === user.id);
 
-        return matchesSearch && matchesFilter;
-      }),
+        return (
+          game.id === focusGameId || (matchesSearch && matchesFilter)
+        );
+      }).sort((a, b) =>
+        a.id === focusGameId ? -1 : b.id === focusGameId ? 1 : 0
+      ),
     [
+      focusGameId,
       games,
       venues,
       search,
@@ -598,10 +803,17 @@ export default function Dashboard({ user, onLogout }) {
       return;
     }
 
-    if (!profileComplete) {
+    // "play" = host also takes a slot, "host" = organise only.
+    const hostRole =
+      new FormData(event.currentTarget).get("host_role") === "host"
+        ? "host"
+        : "play";
+    const hostPlays = hostRole === "play";
+
+    if (hostPlays && !profileComplete) {
       setPage("profile");
       setNotice(
-        "Complete your player card first, then publish your match."
+        "Complete your player card first, or choose \"Just host\" to organise without playing."
       );
       setError("");
       return;
@@ -673,13 +885,23 @@ export default function Dashboard({ user, onLogout }) {
         );
       }
 
+      if (priceRupees > 0 && !UPI_ID_PATTERN.test(hostUpiId)) {
+        throw new Error(
+          "Enter a valid UPI ID, like yourname@okaxis or 9876543210@ybl."
+        );
+      }
+
+      if (!Number.isInteger(duration) || duration < 15 || duration > 600) {
+        throw new Error("Choose a valid match duration.");
+      }
+
       const { data, error: createError } = await supabase
         .from("games")
         .insert({
           organiser_id: user.id,
           venue_id: null,
           venue_name: venueName,
-          host_upi_id: priceRupees > 0 ? hostUpiId : null,
+          host_upi_id: priceRupees > 0 ? hostUpiId.toLowerCase() : null,
           title,
           starts_at: start.toISOString(),
           ends_at: new Date(
@@ -695,30 +917,38 @@ export default function Dashboard({ user, onLogout }) {
 
       if (createError) throw createError;
 
-      // Add the organiser as the first participant.
-      const { error: participantError } = await supabase
-        .from("game_participants")
-        .insert({
-          game_id: data.id,
-          player_id: user.id,
-          status: "joined",
-          slots_count: 1,
-          match_skill_level:
-            playerProfile.skill_level || "Beginner",
-        });
+      if (hostPlays) {
+        // The host takes one of the slots as a player.
+        const { error: participantError } = await supabase
+          .from("game_participants")
+          .insert({
+            game_id: data.id,
+            player_id: user.id,
+            status: "joined",
+            slots_count: 1,
+            match_skill_level:
+              playerProfile.skill_level || "Beginner",
+          });
 
-      if (participantError) {
-        console.error(
-          "Organizer participant entry failed:",
-          participantError
-        );
+        if (participantError) {
+          console.error(
+            "Host participant entry failed:",
+            participantError
+          );
 
-        setNotice(
-          "Game created, but your organiser entry could not be saved."
-        );
+          setNotice(
+            `Your game is live, but we couldn't add you as a player: ${
+              participantError.message || "unknown error"
+            }. Don't create the game again.`
+          );
+        } else {
+          setNotice(
+            `Your game is live and you've taken 1 of the ${maxPlayers} slots. Get your squad together! ⚽`
+          );
+        }
       } else {
         setNotice(
-          "Your game is live. Get your squad together! ⚽"
+          `Your game is live. You're hosting only, so all ${maxPlayers} slots are open to players. ⚽`
         );
       }
 
@@ -908,6 +1138,7 @@ export default function Dashboard({ user, onLogout }) {
 
       setPaymentGame(game);
       setPaymentSlots(1);
+      setFriendEntries([]);
       setSelectedMatchSkillLevel(
         playerProfile.skill_level || "Beginner"
       );
@@ -942,6 +1173,7 @@ export default function Dashboard({ user, onLogout }) {
         {
           p_game_id: freeJoinGame.id,
           p_skill_level: selectedMatchSkillLevel,
+          p_source: joinSource,
         }
       );
 
@@ -992,9 +1224,9 @@ export default function Dashboard({ user, onLogout }) {
 
       const reference = upiReference.trim();
 
-      if (reference.length < 4 || reference.length > 100) {
+      if (!UTR_PATTERN.test(reference)) {
         throw new Error(
-          "Enter the UPI transaction reference (4–100 characters)."
+          "Enter the 12-digit UTR (also called UPI Ref No.) from your UPI app."
         );
       }
 
@@ -1002,9 +1234,13 @@ export default function Dashboard({ user, onLogout }) {
         Number(paymentGame.max_players) -
         (participantCounts[paymentGame.id] || 0);
 
+      if (remaining <= 0) {
+        throw new Error("This game is full.");
+      }
+
       if (slotCount > remaining) {
         throw new Error(
-          `Only ${Math.max(remaining, 0)} slot(s) currently remain.`
+          `Only ${remaining} slot${remaining === 1 ? "" : "s"} left. You can book at most ${remaining}.`
         );
       }
 
@@ -1014,6 +1250,17 @@ export default function Dashboard({ user, onLogout }) {
         );
       }
 
+      const friends = Array.from({ length: slotCount - 1 }, (_, i) => ({
+        name: String(friendEntries[i]?.name || "").trim(),
+        level: friendEntries[i]?.level || "Intermediate",
+      }));
+
+      friends.forEach((friend, i) => {
+        if (friend.name.length < 2 || friend.name.length > 60) {
+          throw new Error(`Enter a name for friend ${i + 1}.`);
+        }
+      });
+
       const { error: submitError } = await supabase.rpc(
         "submit_game_payment",
         {
@@ -1021,6 +1268,8 @@ export default function Dashboard({ user, onLogout }) {
           p_upi_reference: reference,
           p_slots_count: slotCount,
           p_skill_level: selectedMatchSkillLevel,
+          p_guest_names: friends,
+          p_source: joinSource,
         }
       );
 
@@ -1103,6 +1352,263 @@ export default function Dashboard({ user, onLogout }) {
     }
   }
 
+  // ------------------------------------------------------------
+  // HOST: ADD / REMOVE A PLAYER BY HAND (e.g. booked on Playo)
+  // ------------------------------------------------------------
+
+  async function saveAddGuest(event) {
+    event.preventDefault();
+    if (!addGuestGame) return;
+
+    const form = new FormData(event.currentTarget);
+    const name = String(form.get("guest_name") || "").trim();
+    const level = String(form.get("guest_level") || "Intermediate");
+    const source = String(form.get("guest_source") || "playo");
+
+    if (name.length < 2 || name.length > 60) {
+      setError("Enter the player's name (2-60 characters).");
+      return;
+    }
+
+    setAddGuestSaving(true);
+    setError("");
+    setNotice("");
+
+    try {
+      const { error: addError } = await supabase.rpc("host_add_guest", {
+        p_game_id: addGuestGame.id,
+        p_full_name: name,
+        p_skill_level: level,
+        p_source: source,
+      });
+
+      if (addError) throw addError;
+
+      setAddGuestGame(null);
+      setNotice(`${name} added and the teams were rebalanced.`);
+      await loadData();
+    } catch (err) {
+      console.error("KICKOFF add-guest error:", err);
+      setError(err.message || "Couldn't add this player.");
+    } finally {
+      setAddGuestSaving(false);
+    }
+  }
+
+  async function removeGuest(guest) {
+    if (
+      !window.confirm(`Remove ${guest.full_name} from this game?`)
+    ) {
+      return;
+    }
+
+    setRemovingGuestId(guest.guest_id);
+    setError("");
+    setNotice("");
+
+    try {
+      const { error: removeError } = await supabase.rpc(
+        "host_remove_guest",
+        { p_guest_id: guest.guest_id }
+      );
+
+      if (removeError) throw removeError;
+
+      setNotice(`${guest.full_name} removed. Teams were rebalanced.`);
+      await loadData();
+    } catch (err) {
+      console.error("KICKOFF remove-guest error:", err);
+      setError(err.message || "Couldn't remove this player.");
+    } finally {
+      setRemovingGuestId(null);
+    }
+  }
+
+  // ------------------------------------------------------------
+  // POST-MATCH RATINGS
+  // ------------------------------------------------------------
+
+  function openRating(game) {
+    setRatingScores({});
+    setRatingGame(game);
+  }
+
+  async function saveRatings(event) {
+    event.preventDefault();
+    if (!ratingGame) return;
+
+    const ratings = Object.entries(ratingScores)
+      .filter(([, score]) => score >= 1 && score <= 5)
+      .map(([player_id, score]) => ({ player_id, score }));
+
+    if (ratings.length === 0) {
+      setError("Tap a score for at least one player.");
+      return;
+    }
+
+    setRatingSaving(true);
+    setError("");
+    setNotice("");
+
+    try {
+      const { error: rateError } = await supabase.rpc(
+        "submit_player_ratings",
+        { p_game_id: ratingGame.game_id, p_ratings: ratings }
+      );
+
+      if (rateError) throw rateError;
+
+      setRatingGame(null);
+      setNotice(
+        "Thanks! Your ratings help KICKOFF make fairer teams. They stay anonymous."
+      );
+      await loadData();
+    } catch (err) {
+      console.error("KICKOFF rating error:", err);
+      setError(err.message || "Couldn't save your ratings.");
+    } finally {
+      setRatingSaving(false);
+    }
+  }
+
+  // ------------------------------------------------------------
+  // EDIT GAME (host)
+  // ------------------------------------------------------------
+
+  async function saveEditGame(event) {
+    event.preventDefault();
+    if (!editGame) return;
+
+    setEditSaving(true);
+    setError("");
+    setNotice("");
+
+    try {
+      const form = new FormData(event.currentTarget);
+
+      const title = String(form.get("title") || "").trim();
+      const venueName = String(form.get("venue_name") || "").trim();
+      const start = new Date(`${form.get("date")}T${form.get("time")}:00`);
+      const duration = Number(form.get("duration"));
+      const priceRupees = Number(form.get("price"));
+      const maxPlayers = Number(form.get("total"));
+      const hostUpiId = String(form.get("host_upi_id") || "").trim().toLowerCase();
+      const joinedSlots = participantCounts[editGame.id] || 0;
+
+      if (!title) throw new Error("Enter a name for your game.");
+      if (!venueName) throw new Error("Enter the venue name.");
+
+      if (!Number.isFinite(start.getTime()) || start.getTime() <= Date.now()) {
+        throw new Error("Choose a future date and kick-off time.");
+      }
+
+      if (!Number.isInteger(duration) || duration < 15 || duration > 600) {
+        throw new Error("Duration must be between 15 and 600 minutes.");
+      }
+
+      if (!Number.isSafeInteger(priceRupees) || priceRupees < 0 || priceRupees > 100000) {
+        throw new Error("Enter a valid price in whole rupees.");
+      }
+
+      if (!Number.isInteger(maxPlayers) || maxPlayers < 2 || maxPlayers > 50) {
+        throw new Error("Total slots must be between 2 and 50.");
+      }
+
+      if (maxPlayers < joinedSlots) {
+        throw new Error(
+          `${joinedSlots} slots are already taken, so total slots can't be lower than ${joinedSlots}.`
+        );
+      }
+
+      if (priceRupees > 0 && !UPI_ID_PATTERN.test(hostUpiId)) {
+        throw new Error(
+          "Enter a valid UPI ID for a paid game, like yourname@okaxis."
+        );
+      }
+
+      const { error: updateError } = await supabase
+        .from("games")
+        .update({
+          title,
+          venue_name: venueName,
+          starts_at: start.toISOString(),
+          ends_at: new Date(start.getTime() + duration * 60000).toISOString(),
+          price_per_player_paise: priceRupees * 100,
+          max_players: maxPlayers,
+          host_upi_id: priceRupees > 0 ? hostUpiId : null,
+        })
+        .eq("id", editGame.id)
+        .eq("organiser_id", user.id);
+
+      if (updateError) throw updateError;
+
+      setEditGame(null);
+      setNotice(
+        "Game updated. Players see the changes when they refresh. Payments already made keep their old amount."
+      );
+
+      await loadData();
+    } catch (err) {
+      console.error("KICKOFF edit-game error:", err);
+      setError(err.message || "Couldn't update this game.");
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  // Opens the match rotation tool with this game's confirmed players.
+  // Extra slots (a player bringing friends) become "Name +1", "Name +2"...
+  function openRotation(game) {
+    const SKILL_SCORE = {
+      Beginner: 1,
+      Intermediate: 2,
+      Amateur: 3,
+      Professional: 4,
+    };
+
+    const roster = gameRoster[game.id] || [];
+    const players = [];
+
+    for (const player of roster) {
+      const skill =
+        SKILL_SCORE[player.match_skill_level] ||
+        SKILL_SCORE[player.skill_level] ||
+        2;
+      const name = player.full_name || "Player";
+      const slots = Math.max(1, Number(player.slots_count || 1));
+
+      players.push({
+        name: player.is_guest ? `${name} (guest)` : name,
+        skill,
+        gk: !player.is_guest && player.primary_position === "Goalkeeper",
+      });
+
+      for (let extra = 1; extra < slots; extra++) {
+        players.push({ name: `${name} +${extra}`, skill, gk: false });
+      }
+    }
+
+    if (players.length < 2) {
+      setError("At least 2 confirmed players are needed for a rotation.");
+      return;
+    }
+
+    try {
+      localStorage.setItem(
+        "kickoff-rotation-import",
+        JSON.stringify({
+          gameTitle: game.title,
+          players,
+          createdAt: Date.now(),
+        })
+      );
+    } catch {
+      // Storage blocked: the tool still opens, players can be pasted.
+    }
+
+    window.location.assign("/rotation.html");
+  }
+
   async function cancelGame(game) {
     if (game.organiser_id !== user.id) {
       setError("Only the organiser can cancel this game.");
@@ -1168,18 +1674,66 @@ export default function Dashboard({ user, onLogout }) {
     setGameDraftTemplate(template);
   }
 
+  function gameLink(game, source) {
+    const base = `${window.location.origin}/?game=${game.id}`;
+    return source ? `${base}&src=${source}` : base;
+  }
+
+  async function copyPlayoLink(game) {
+    const text = `Confirm your slot and pay for ${game.title} on KICKOFF: ${gameLink(game, "playo")}`;
+
+    try {
+      await navigator.clipboard.writeText(text);
+      setNotice(
+        "Playo link copied. Paste it in the Playo game description and chat. Players who use it are tagged \"via Playo\"."
+      );
+    } catch {
+      setNotice(`Copy this into Playo: ${text}`);
+    }
+  }
+
+  function gameShareMessage(game) {
+    const venue = venueFor(game);
+    const count = participantCounts[game.id] || 0;
+    const left = Math.max(0, Number(game.max_players || 0) - count);
+    const price = Number(game.price_per_player_paise || 0) / 100;
+
+    return [
+      `⚽ *${game.title}*`,
+      `📅 ${displayDate(game.starts_at, { weekday: "long" })}, ${displayTime(game.starts_at)}`,
+      `📍 ${venue?.name || "Venue to be confirmed"}`,
+      `💰 ${price > 0 ? `₹${price.toLocaleString("en-IN")} per slot` : "Free"}`,
+      `👥 ${count}/${game.max_players} joined · ${left > 0 ? `${left} slot${left === 1 ? "" : "s"} left` : "FULL"}`,
+      "",
+      `Join here 👉 ${gameLink(game, "whatsapp")}`,
+    ]
+      .join("\n")
+      // Browsers may use special narrow spaces in times ("8:00 pm").
+      .replace(/[\u202f\u00a0]/g, " ");
+  }
+
+  function shareOnWhatsApp(game) {
+    // api.whatsapp.com keeps the text intact (wa.me can garble characters).
+    const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(
+      gameShareMessage(game)
+    )}`;
+
+    const opened = window.open(url, "_blank", "noopener,noreferrer");
+
+    if (!opened) {
+      window.location.href = url;
+    }
+  }
+
   async function shareText(textToShare) {
     try {
       if (navigator.share) {
         await navigator.share({
           title: "Potato FC · KICKOFF",
           text: textToShare,
-          url: window.location.href,
         });
       } else if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(
-          `${textToShare}\n\nJoin Potato FC on KICKOFF: ${window.location.href}`
-        );
+        await navigator.clipboard.writeText(textToShare);
 
         setNotice(
           "Potato FC details copied. Share them with the squad."
@@ -1250,7 +1804,10 @@ export default function Dashboard({ user, onLogout }) {
     );
 
     return (
-      <article className="game-card" key={game.id}>
+      <article
+        className={`game-card${game.id === focusGameId ? " focused-game" : ""}`}
+        key={game.id}
+      >
         <div className={`game-art art-${index % 4}`}>
           <span className="game-format">
             {game.format || "Football"}
@@ -1329,8 +1886,9 @@ export default function Dashboard({ user, onLogout }) {
               </div>
 
               <p className="balanced-team-note">
-                Teams rebalance automatically by the level each
-                player selects for this match.
+                Teams rebalance automatically using each player's
+                match level and their KICKOFF rating. Friends and
+                guests are balanced individually.
               </p>
 
               <div className="balanced-teams">
@@ -1394,6 +1952,26 @@ export default function Dashboard({ user, onLogout }) {
                                 ×{player.slots_count} slots
                               </span>
                             )}
+
+                            {!player.is_guest && player.source === "playo" && (
+                              <span className="balanced-player-slots">
+                                via Playo
+                              </span>
+                            )}
+
+                            {organizer &&
+                              player.is_guest &&
+                              player.guest_kind === "manual" && (
+                                <button
+                                  type="button"
+                                  className="guest-remove-button"
+                                  disabled={removingGuestId === player.guest_id}
+                                  onClick={() => removeGuest(player)}
+                                  title="Remove this player"
+                                >
+                                  {removingGuestId === player.guest_id ? "…" : "×"}
+                                </button>
+                              )}
                           </div>
                         ))}
                       </div>
@@ -1475,18 +2053,66 @@ export default function Dashboard({ user, onLogout }) {
             <button
               type="button"
               className="text-action"
-              onClick={() =>
-                shareText(
-                  `${game.title} · ${displayDate(game.starts_at, {
-                    weekday: "long",
-                  })} ${displayTime(game.starts_at)} · ${
-                    venue?.name || "Venue to be confirmed"
-                  } · ${game.format || "Football"}`
-                )
-              }
+              onClick={() => shareOnWhatsApp(game)}
             >
-              ↗ Share match
+              🟢 Share on WhatsApp
             </button>
+
+            <button
+              type="button"
+              className="text-action"
+              onClick={() => shareText(gameShareMessage(game))}
+            >
+              ↗ Share
+            </button>
+
+            {organizer && page === "my-games" && (
+              <button
+                type="button"
+                className="text-action"
+                onClick={() => {
+                  setError("");
+                  setNotice("");
+                  setEditGame(game);
+                }}
+              >
+                ✎ Edit game
+              </button>
+            )}
+
+            {organizer && page === "my-games" && (
+              <button
+                type="button"
+                className="text-action"
+                onClick={() => copyPlayoLink(game)}
+              >
+                📋 Copy Playo link
+              </button>
+            )}
+
+            {organizer && page === "my-games" && (
+              <button
+                type="button"
+                className="text-action"
+                onClick={() => {
+                  setError("");
+                  setNotice("");
+                  setAddGuestGame(game);
+                }}
+              >
+                + Add player
+              </button>
+            )}
+
+            {organizer && page === "my-games" && (
+              <button
+                type="button"
+                className="text-action"
+                onClick={() => openRotation(game)}
+              >
+                ⏱ Match rotation
+              </button>
+            )}
 
             {organizer && page === "my-games" && (
               <button
@@ -1656,6 +2282,29 @@ export default function Dashboard({ user, onLogout }) {
           )}
 
           {/* HOME */}
+          {gamesToRate.length > 0 && (
+            <section className="rate-banner">
+              <div>
+                <div className="section-eyebrow">AFTER THE MATCH</div>
+                <strong>
+                  Rate the players from {gamesToRate[0].title}
+                </strong>
+                <span>
+                  Takes 20 seconds. Ratings are anonymous and make
+                  future teams fairer.
+                </span>
+              </div>
+
+              <button
+                type="button"
+                className="lime-button"
+                onClick={() => openRating(gamesToRate[0])}
+              >
+                Rate players ★
+              </button>
+            </section>
+          )}
+
           {page === "home" && (
             <>
               <section className="welcome-hero">
@@ -2283,7 +2932,20 @@ export default function Dashboard({ user, onLogout }) {
                               </strong>
                               {" · "}
                               {request.slots_count} slot(s)
+                              {request.source === "playo" && " · via Playo"}
                             </div>
+
+                            {Array.isArray(request.guest_names) &&
+                              request.guest_names.length > 0 && (
+                                <div>
+                                  Friends:{" "}
+                                  <strong>
+                                    {request.guest_names
+                                      .map((friend) => friend.name)
+                                      .join(", ")}
+                                  </strong>
+                                </div>
+                              )}
 
                             <div>
                               Playing level:{" "}
@@ -2713,6 +3375,22 @@ export default function Dashboard({ user, onLogout }) {
               </div>
 
               {/* HOST ACCOUNT: guest -> email + password */}
+              <section className="profile-account-panel my-rating-panel">
+                <div className="profile-account-copy">
+                  <div className="section-eyebrow">KICKOFF RATING</div>
+                  <h2>
+                    {myRating
+                      ? `${myRating.avg.toFixed(1)} ★`
+                      : "Not rated yet"}
+                  </h2>
+                  <p>
+                    {myRating
+                      ? `From ${myRating.count} rating${myRating.count === 1 ? "" : "s"} by players you've played with.`
+                      : "After your games, other players rate you 1-5. Your rating helps balance teams."}
+                  </p>
+                </div>
+              </section>
+
               <SecureAccount user={user} />
 
               {/* LOGOUT OPTION IS ALSO AVAILABLE HERE */}
@@ -2805,6 +3483,324 @@ export default function Dashboard({ user, onLogout }) {
           </button>
         ))}
       </nav>
+
+      {/* ADD PLAYER MODAL (host) */}
+      {addGuestGame && (
+        <div
+          className="modal-backdrop"
+          onClick={(event) => {
+            if (event.target === event.currentTarget && !addGuestSaving) {
+              setAddGuestGame(null);
+            }
+          }}
+        >
+          <form className="game-form" onSubmit={saveAddGuest}>
+            <div className="form-heading">
+              <div>
+                <div className="section-eyebrow">HOST TOOLS</div>
+                <h2>
+                  Add a player<span>.</span>
+                </h2>
+                <p>
+                  For someone who booked on Playo or paid you directly
+                  and won't use KICKOFF. They take 1 slot and get a team.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="close-button"
+                disabled={addGuestSaving}
+                onClick={() => setAddGuestGame(null)}
+              >
+                ×
+              </button>
+            </div>
+
+            <label>
+              Player name
+              <input
+                name="guest_name"
+                placeholder="e.g. Rahul (Playo)"
+                minLength={2}
+                maxLength={60}
+                required
+              />
+            </label>
+
+            <div className="form-two-columns">
+              <label>
+                Level
+                <select name="guest_level" defaultValue="Intermediate">
+                  {SKILL_LEVELS.map((level) => (
+                    <option key={level} value={level}>
+                      {level}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                Came from
+                <select name="guest_source" defaultValue="playo">
+                  <option value="playo">Playo</option>
+                  <option value="whatsapp">WhatsApp</option>
+                  <option value="kickoff">Other</option>
+                </select>
+              </label>
+            </div>
+
+            <button
+              className="lime-button submit-button"
+              type="submit"
+              disabled={addGuestSaving}
+            >
+              {addGuestSaving ? "Adding…" : "Add player ↗"}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* RATING MODAL */}
+      {ratingGame && (
+        <div
+          className="modal-backdrop"
+          onClick={(event) => {
+            if (event.target === event.currentTarget && !ratingSaving) {
+              setRatingGame(null);
+            }
+          }}
+        >
+          <form className="game-form" onSubmit={saveRatings}>
+            <div className="form-heading">
+              <div>
+                <div className="section-eyebrow">AFTER THE MATCH</div>
+                <h2>
+                  Rate the players<span>.</span>
+                </h2>
+                <p>
+                  {ratingGame.title}. 1 = needs work, 5 = brilliant.
+                  Anonymous. Skip anyone you didn't notice.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="close-button"
+                disabled={ratingSaving}
+                onClick={() => setRatingGame(null)}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="rating-list">
+              {(ratingGame.players || []).map((player) => (
+                <div className="rating-row" key={player.id}>
+                  <span className="rating-name">{player.name}</span>
+
+                  <div className="rating-stars" role="radiogroup" aria-label={`Rate ${player.name}`}>
+                    {[1, 2, 3, 4, 5].map((score) => (
+                      <button
+                        key={score}
+                        type="button"
+                        role="radio"
+                        aria-checked={ratingScores[player.id] === score}
+                        className={`rating-star${
+                          (ratingScores[player.id] || 0) >= score ? " on" : ""
+                        }`}
+                        onClick={() =>
+                          setRatingScores((current) => ({
+                            ...current,
+                            [player.id]: score,
+                          }))
+                        }
+                      >
+                        {score}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button
+              className="lime-button submit-button"
+              type="submit"
+              disabled={ratingSaving}
+            >
+              {ratingSaving ? "Saving…" : "Submit ratings ↗"}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* EDIT GAME MODAL (host) */}
+      {editGame && (() => {
+        const start = new Date(editGame.starts_at);
+        const end = new Date(editGame.ends_at || editGame.starts_at);
+        const durationMinutes = Math.max(
+          15,
+          Math.round((end.getTime() - start.getTime()) / 60000) || 60
+        );
+        const timeValue = `${String(start.getHours()).padStart(2, "0")}:${String(
+          start.getMinutes()
+        ).padStart(2, "0")}`;
+        const joinedSlots = participantCounts[editGame.id] || 0;
+
+        return (
+          <div
+            className="modal-backdrop"
+            onClick={(event) => {
+              if (event.target === event.currentTarget && !editSaving) {
+                setEditGame(null);
+              }
+            }}
+          >
+            <form
+              className="game-form"
+              key={`edit-${editGame.id}`}
+              onSubmit={saveEditGame}
+            >
+              <div className="form-heading">
+                <div>
+                  <div className="section-eyebrow">HOST TOOLS</div>
+                  <h2>
+                    Edit game<span>.</span>
+                  </h2>
+                  <p>
+                    {joinedSlots} slot{joinedSlots === 1 ? "" : "s"} already
+                    taken. Players and payments stay as they are.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  className="close-button"
+                  disabled={editSaving}
+                  onClick={() => setEditGame(null)}
+                >
+                  ×
+                </button>
+              </div>
+
+              <label>
+                Game name
+                <input
+                  name="title"
+                  defaultValue={editGame.title || ""}
+                  maxLength={150}
+                  required
+                />
+              </label>
+
+              <label>
+                Venue
+                <input
+                  name="venue_name"
+                  defaultValue={editGame.venue_name || venueFor(editGame)?.name || ""}
+                  maxLength={200}
+                  required
+                />
+              </label>
+
+              <div className="form-two-columns">
+                <label>
+                  Date
+                  <input
+                    name="date"
+                    type="date"
+                    min={localDateISO(new Date())}
+                    defaultValue={localDateISO(start)}
+                    required
+                  />
+                </label>
+
+                <label>
+                  Kick-off time
+                  <input
+                    name="time"
+                    type="time"
+                    defaultValue={timeValue}
+                    required
+                  />
+                </label>
+              </div>
+
+              <div className="form-two-columns">
+                <label>
+                  Duration (minutes)
+                  <input
+                    name="duration"
+                    type="number"
+                    min="15"
+                    max="600"
+                    step="5"
+                    defaultValue={durationMinutes}
+                    required
+                  />
+                </label>
+
+                <label>
+                  Price per slot (₹)
+                  <input
+                    name="price"
+                    type="number"
+                    min="0"
+                    max="100000"
+                    step="1"
+                    defaultValue={Math.round(
+                      Number(editGame.price_per_player_paise || 0) / 100
+                    )}
+                    required
+                  />
+                </label>
+              </div>
+
+              <label>
+                Total slots <small>(at least {Math.max(2, joinedSlots)})</small>
+                <input
+                  name="total"
+                  type="number"
+                  min={Math.max(2, joinedSlots)}
+                  max="50"
+                  step="1"
+                  defaultValue={editGame.max_players}
+                  required
+                />
+              </label>
+
+              <label>
+                Host UPI ID <small>(required for paid games)</small>
+                <input
+                  name="host_upi_id"
+                  type="text"
+                  defaultValue={editGame.host_upi_id || ""}
+                  placeholder="yourname@okaxis"
+                  pattern="[a-zA-Z0-9][a-zA-Z0-9._\-]{1,255}@[a-zA-Z][a-zA-Z0-9]{1,63}"
+                  title="A UPI ID looks like yourname@okaxis or 9876543210@ybl"
+                  maxLength={100}
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                />
+              </label>
+
+              <p className="form-note">
+                A new price applies to new payment requests only. Refund
+                any difference to players who already paid.
+              </p>
+
+              <button
+                className="lime-button submit-button"
+                type="submit"
+                disabled={editSaving}
+              >
+                {editSaving ? "Saving changes…" : "Save changes ↗"}
+              </button>
+            </form>
+          </div>
+        );
+      })()}
 
       {/* CREATE GAME MODAL */}
       {showForm && (
@@ -2945,7 +3941,8 @@ export default function Dashboard({ user, onLogout }) {
               </label>
 
               <label>
-                Total slots available
+                Total slots{" "}
+                <small>(including you, if you play)</small>
                 <input
                   name="total"
                   type="number"
@@ -2957,13 +3954,40 @@ export default function Dashboard({ user, onLogout }) {
               </label>
             </div>
 
+            <fieldset className="host-role-choice">
+              <legend>Your role in this game</legend>
+
+              <label className="host-role-option">
+                <input
+                  type="radio"
+                  name="host_role"
+                  value="play"
+                  defaultChecked
+                />
+                <span>
+                  <strong>Host + play</strong>
+                  <small>You take 1 slot and get a team.</small>
+                </span>
+              </label>
+
+              <label className="host-role-option">
+                <input type="radio" name="host_role" value="host" />
+                <span>
+                  <strong>Just host</strong>
+                  <small>You organise only. All slots go to players.</small>
+                </span>
+              </label>
+            </fieldset>
+
             <label>
               Host UPI ID{" "}
               <small>(required for paid games)</small>
               <input
                 name="host_upi_id"
                 type="text"
-                placeholder="yourname@upi"
+                placeholder="yourname@okaxis"
+                pattern="[a-zA-Z0-9][a-zA-Z0-9._\-]{1,255}@[a-zA-Z][a-zA-Z0-9]{1,63}"
+                title="A UPI ID looks like yourname@okaxis or 9876543210@ybl"
                 maxLength={100}
                 autoCapitalize="none"
                 autoCorrect="off"
@@ -3151,25 +4175,96 @@ export default function Dashboard({ user, onLogout }) {
             </div>
 
             <label>
-              Number of slots
+              Number of slots{" "}
+              <small>
+                ({paymentSlotsLeft} left · max {paymentSlotsMax})
+              </small>
               <input
                 type="number"
+                inputMode="numeric"
                 min="1"
-                max={Math.max(
-                  1,
-                  Math.min(
-                    50,
-                    Number(paymentGame.max_players) -
-                      (participantCounts[paymentGame.id] || 0)
-                  )
-                )}
+                max={paymentSlotsMax}
+                step="1"
                 value={paymentSlots}
-                onChange={(event) =>
-                  setPaymentSlots(event.target.value)
-                }
+                onChange={(event) => {
+                  const raw = event.target.value;
+
+                  if (raw === "") {
+                    setPaymentSlots("");
+                    return;
+                  }
+
+                  const wanted = Math.floor(Number(raw));
+
+                  if (!Number.isFinite(wanted)) return;
+
+                  // Never allow more than the slots still available.
+                  setPaymentSlots(
+                    String(Math.min(Math.max(wanted, 1), paymentSlotsMax))
+                  );
+                }}
                 required
               />
             </label>
+
+            {Number(paymentSlots) > 1 && (
+              <div className="friend-entries">
+                <div className="friend-entries-title">
+                  Your friends ({Number(paymentSlots) - 1})
+                  <small> · names help us balance the teams</small>
+                </div>
+
+                {Array.from(
+                  { length: Number(paymentSlots) - 1 },
+                  (_, index) => (
+                    <div className="friend-entry-row" key={index}>
+                      <input
+                        value={friendEntries[index]?.name || ""}
+                        onChange={(event) => {
+                          const value = event.target.value.slice(0, 60);
+                          setFriendEntries((current) => {
+                            const next = [...current];
+                            next[index] = {
+                              level: "Intermediate",
+                              ...next[index],
+                              name: value,
+                            };
+                            return next;
+                          });
+                        }}
+                        placeholder={`Friend ${index + 1} name`}
+                        minLength={2}
+                        maxLength={60}
+                        required
+                      />
+
+                      <select
+                        value={friendEntries[index]?.level || "Intermediate"}
+                        onChange={(event) => {
+                          const value = event.target.value;
+                          setFriendEntries((current) => {
+                            const next = [...current];
+                            next[index] = {
+                              name: "",
+                              ...next[index],
+                              level: value,
+                            };
+                            return next;
+                          });
+                        }}
+                        aria-label={`Friend ${index + 1} level`}
+                      >
+                        {SKILL_LEVELS.map((level) => (
+                          <option key={level} value={level}>
+                            {level}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )
+                )}
+              </div>
+            )}
 
             <label>
               Playing level for this match
@@ -3190,8 +4285,8 @@ export default function Dashboard({ user, onLogout }) {
 
             <p className="form-note">
               Choose honestly so Potato FC can balance the Black
-              and White teams. This level applies to all slots in
-              this booking.
+              and White teams. This is your level; set each
+              friend's level next to their name.
             </p>
 
             <div className="kit-choice-preview">
@@ -3232,18 +4327,27 @@ export default function Dashboard({ user, onLogout }) {
             </div>
 
             <label>
-              UPI transaction reference / UTR
+              12-digit UTR / UPI Ref No.
               <input
                 value={upiReference}
                 onChange={(event) =>
-                  setUpiReference(event.target.value)
+                  setUpiReference(
+                    event.target.value.replace(/\D/g, "").slice(0, 12)
+                  )
                 }
-                placeholder="Enter the reference shown by your UPI app"
-                minLength={4}
-                maxLength={100}
-                autoCapitalize="characters"
+                placeholder="e.g. 431234567890"
+                inputMode="numeric"
+                pattern="\d{12}"
+                minLength={12}
+                maxLength={12}
+                title="Enter the 12-digit UTR from your UPI app"
                 required
               />
+              <small>
+                {upiReference.length}/12 digits. In GPay, PhonePe or
+                Paytm, open the payment and look for "UTR" or "UPI Ref
+                No."
+              </small>
             </label>
 
             <p className="form-note">
@@ -3257,10 +4361,11 @@ export default function Dashboard({ user, onLogout }) {
               type="submit"
               disabled={
                 joiningGameId === paymentGame.id ||
+                paymentSlotsLeft <= 0 ||
+                !Number.isInteger(Number(paymentSlots)) ||
                 Number(paymentSlots) < 1 ||
-                Number(paymentSlots) >
-                  Number(paymentGame.max_players) -
-                    (participantCounts[paymentGame.id] || 0)
+                Number(paymentSlots) > paymentSlotsMax ||
+                upiReference.length !== 12
               }
             >
               {joiningGameId === paymentGame.id
