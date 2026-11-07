@@ -782,6 +782,7 @@ export default function Dashboard({ user, onLogout }) {
       const payload = {
         id: user.id,
         full_name: fullName,
+        display_name: fullName,
         skill_level: skillLevel,
         primary_position: primaryPosition,
         secondary_position: secondaryPosition || null,
