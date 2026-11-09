@@ -168,3 +168,25 @@
 .auth-link-button:disabled {
   opacity: 0.5;
 }
+
+.auth-invite {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid #c7ff45;
+  border-radius: 10px;
+  background: #f4ffe0;
+  text-align: left;
+}
+
+.auth-invite strong {
+  color: #1f2a10;
+  font-size: 13px;
+}
+
+.auth-invite span {
+  color: #4b5a3a;
+  font-size: 12px;
+  line-height: 1.45;
+}
