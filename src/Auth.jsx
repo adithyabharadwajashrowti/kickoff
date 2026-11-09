@@ -14,6 +14,18 @@ export default function Auth({ onLogin }) {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Opened from a shared game link (?game=...&src=playo)?
+  const [invite] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      return params.get("game")
+        ? { fromPlayo: params.get("src") === "playo" }
+        : null;
+    } catch {
+      return null;
+    }
+  });
+
   function switchMode(nextMode) {
     setMode(nextMode);
     setMessage("");
@@ -159,6 +171,20 @@ export default function Auth({ onLogin }) {
             ? "Join your football community. Find your squad. Get out there and play."
             : "Log in with the email and password you set on your profile."}
         </p>
+
+        {invite && mode === "player" && (
+          <div className="auth-invite">
+            <strong>
+              {invite.fromPlayo
+                ? "Booked on Playo? Confirm your slot here."
+                : "You've been invited to a Potato FC game ⚽"}
+            </strong>
+            <span>
+              Join below (takes 10 seconds) and the game opens straight
+              away so you can book and pay.
+            </span>
+          </div>
+        )}
 
         <div className="auth-tabs" role="tablist">
           <button

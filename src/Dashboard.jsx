@@ -169,6 +169,9 @@ export default function Dashboard({ user, onLogout }) {
   const [ratingSaving, setRatingSaving] = useState(false);
   const [myRating, setMyRating] = useState(null);
 
+  // Only approved hosts can create games (null = still checking).
+  const [isApprovedHost, setIsApprovedHost] = useState(null);
+
   const [games, setGames] = useState([]);
   const [venues, setVenues] = useState([]);
   const [participantCounts, setParticipantCounts] = useState({});
@@ -576,11 +579,20 @@ export default function Dashboard({ user, onLogout }) {
         setGameRoster({});
       }
 
-      // Ratings (non-blocking: older databases simply skip this).
-      const [toRateResult, myRatingResult] = await Promise.all([
+      // Ratings and host approval (non-blocking).
+      const [toRateResult, myRatingResult, hostResult] = await Promise.all([
         supabase.rpc("games_to_rate"),
         supabase.rpc("my_rating"),
+        supabase
+          .from("approved_hosts")
+          .select("user_id")
+          .eq("user_id", user.id)
+          .maybeSingle(),
       ]);
+
+      // If the approval table isn't set up, don't block in the app;
+      // the database rules still decide.
+      setIsApprovedHost(hostResult.error ? true : Boolean(hostResult.data));
 
       setGamesToRate(
         !toRateResult.error && Array.isArray(toRateResult.data)
@@ -791,6 +803,15 @@ export default function Dashboard({ user, onLogout }) {
       return false;
     }
 
+    if (isApprovedHost === false) {
+      setShowForm(false);
+      setError("");
+      setNotice(
+        `Only approved Potato FC hosts can create games. To become a host, send your KICKOFF email (${user.email || "the one on your profile"}) to the Potato FC admin.`
+      );
+      return false;
+    }
+
     setShowForm(true);
     return true;
   }
@@ -915,7 +936,14 @@ export default function Dashboard({ user, onLogout }) {
         .select()
         .single();
 
-      if (createError) throw createError;
+      if (createError) {
+        if (String(createError.message || "").includes("row-level security")) {
+          throw new Error(
+            "Only approved Potato FC hosts can create games. Ask the admin to approve your account."
+          );
+        }
+        throw createError;
+      }
 
       if (hostPlays) {
         // The host takes one of the slots as a player.
